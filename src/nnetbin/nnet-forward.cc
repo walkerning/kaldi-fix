@@ -66,6 +66,11 @@ int main(int argc, char *argv[]) {
     po.Register("time-shift", &time_shift,
         "LSTM : repeat last input frame N-times, discrad N initial output frames.");
 
+    std::string fix_config;
+    po.Register("fix_config", &fix_config,
+        "path to the config file of fix strategy");
+
+
     po.Read(argc, argv);
 
     if (po.NumArgs() != 3) {
@@ -86,9 +91,13 @@ int main(int argc, char *argv[]) {
     if (feature_transform != "") {
       nnet_transf.Read(feature_transform);
     }
-
-    Nnet nnet;
+    
+    NnetFix nnet;
     nnet.Read(model_filename);
+
+    // Read the fix-point config 
+    nnet.InitFix(fix_config);
+
     // optionally remove softmax,
     Component::ComponentType last_comp_type = nnet.GetLastComponent().GetType();
     if (no_softmax) {
@@ -116,6 +125,10 @@ int main(int argc, char *argv[]) {
     nnet_transf.SetDropoutRetention(1.0);
     nnet.SetDropoutRetention(1.0);
 
+
+    // Apply Weight Fix
+    nnet.ApplyWeightFix();
+    
     kaldi::int64 tot_t = 0;
 
     SequentialBaseFloatMatrixReader feature_reader(feature_rspecifier);
