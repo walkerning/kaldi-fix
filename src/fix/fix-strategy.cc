@@ -1,6 +1,7 @@
 #include <fix/fix-strategy.h>
 #include "nnet/nnet-nnet-fix.h"
 #include "fix/fix-dynamic-fixed-point.h"
+#include "fix/fix-null-strategy.h"
 
 namespace kaldi {
   namespace fix {
@@ -32,14 +33,14 @@ namespace kaldi {
       return kUnknown;
     }
 
-    std::shared_ptr<FixStrategy> FixStrategy::Read(std::istream &is, bool binary) {
+    std::tr1::shared_ptr<FixStrategy> FixStrategy::Read(std::istream &is, bool binary) {
       std::string token;
       
       int first_char = Peek(is, binary);
-      if (first_char == EOF) return NULL;
+      if (first_char == EOF) return std::tr1::shared_ptr<FixStrategy>(NewStrategyOfType(kNullStrategy));
       
       ReadToken(is, binary, &token);
-      std::shared_ptr<FixStrategy> ans = std::shared_ptr<FixStrategy>(NewStrategyOfType(MarkerToType(token)));
+      std::tr1::shared_ptr<FixStrategy> ans = std::tr1::shared_ptr<FixStrategy>(NewStrategyOfType(MarkerToType(token)));
       ans -> ReadData(is, binary);
 
       ExpectToken(is, binary, "<!EndOfStrategy>");
@@ -54,7 +55,7 @@ namespace kaldi {
       if (!binary) os << "\n";
     }
 
-    // std::shared_ptr<FixStrategy> FixStrategy::Init(const std::string &conf_line) {
+    // std::tr1::shared_ptr<FixStrategy> FixStrategy::Init(const std::string &conf_line) {
     //   std::istringstream is(conf_line);
     //   std::string strategy_type_string;
     //   int32 input_dim, output_dim;
@@ -62,7 +63,7 @@ namespace kaldi {
     //   // initialize w/o internal data
     //   ReadToken(is, false, &strategy_type_string);
     //   StrategyType strategy_type = MarkerToType(strategy_type_string);
-    //   std::shared_ptr<FixStrategy> ans = NewStrategyOfType(strategy_type);
+    //   std::tr1::shared_ptr<FixStrategy> ans = NewStrategyOfType(strategy_type);
 
     //   // initialize internal data with the remaining part of config line
     //   ans->InitData(is);
@@ -75,6 +76,9 @@ namespace kaldi {
       switch (strategy_type) {
       case FixStrategy::kDynamicFixedPoint:
 	ans = new DynamicFixedPointStrategy();
+	break;
+      case FixStrategy::kNullStrategy:
+	ans = new NullStrategy();
 	break;
       default:
 	KALDI_ERR << "Missing type: " << TypeToMarker(strategy_type);

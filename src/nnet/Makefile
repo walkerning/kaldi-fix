@@ -4,13 +4,14 @@ all:
 
 include ../kaldi.mk
 
+#CXXFLAGS += -std=gnu++11
 LDFLAGS += $(CUDA_LDFLAGS)
 LDLIBS += $(CUDA_LDLIBS)
 
 TESTFILES = nnet-randomizer-test nnet-component-test
 
 OBJFILES = nnet-nnet.o nnet-component.o nnet-loss.o \
-           nnet-pdf-prior.o nnet-randomizer.o
+           nnet-pdf-prior.o nnet-randomizer.o nnet-nnet-fix.o
 
 LIBNAME = kaldi-nnet
 

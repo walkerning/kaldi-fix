@@ -2,7 +2,7 @@
 #define KALDI_FIX_FIX_STRATEGY_H_
 
 #include <iostream>
-#include <memory>
+#include <tr1/memory>
 #include <string>
 
 #include "base/kaldi-common.h"
@@ -23,7 +23,9 @@ namespace kaldi {
       typedef enum {
 	kUnknown = 0x0,
 
-	kDynamicFixedPoint = 0x0100
+	kNullStrategy = 0x100,
+
+	kDynamicFixedPoint = 0x0200
       } StrategyType;
 
       /// A pair of type and marker,
@@ -40,15 +42,15 @@ namespace kaldi {
       static const char* TypeToMarker(StrategyType t);
       static StrategyType MarkerToType(const std::string &s);
       
-      static std::shared_ptr<FixStrategy> Read(const std::string &rxfilename) {
+      static std::tr1::shared_ptr<FixStrategy> Read(const std::string &rxfilename) {
 	bool binary;
 	Input in(rxfilename, &binary);
-	std::shared_ptr<FixStrategy> strategy = Read(in.Stream(), binary);
+	std::tr1::shared_ptr<FixStrategy> strategy = Read(in.Stream(), binary);
 	in.Close(); 
 	return strategy;
       }
 
-      static std::shared_ptr<FixStrategy> Read(std::istream &is, bool binary);
+      static std::tr1::shared_ptr<FixStrategy> Read(std::istream &is, bool binary);
 
       /// Write the component to a stream,
       void Write(std::ostream &os, bool binary) const;

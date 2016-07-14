@@ -1,9 +1,11 @@
-OBJFILES = fix-strategy.o
 
-CXXFLAGS += -std=gnu++11
-
-all: $(OBJFILES)
+all:
 
 include ../kaldi.mk
+
+#CXXFLAGS += -std=gnu++11
+
+OBJFILES = fix-strategy.o
+LIBNAME = kaldi-fix
 
 include ../makefiles/default_rules.mk

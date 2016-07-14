@@ -1,7 +1,7 @@
 #ifndef KALDI_FIX_DYNAMIC_FIXED_POINT_H_
 #define KALDI_FIX_DYNAMIC_FIXED_POINT_H_
 
-#include <unordered_map>
+#include <tr1/unordered_map>
 #include <limits>
 #include <algorithm>
 
@@ -10,7 +10,7 @@
 namespace kaldi {
   namespace fix {
     using namespace kaldi::nnet1;
-    typedef std::unordered_map<int, int> IndexIntMap;
+    typedef std::tr1::unordered_map<int, int> IndexIntMap;
 
     class DynamicFixedPointStrategy : public FixStrategy {
 
@@ -97,20 +97,20 @@ namespace kaldi {
       }
       
       virtual void WriteData(std::ostream &os, bool binary) const {
-	for( const auto& item : blob_index_map_ ) {
+	for( IndexIntMap::const_iterator item = blob_index_map_.begin(); item != blob_index_map_.end(); ++item ) { 
 	  WriteToken(os, binary, "<BlobIndexBit>");
-	  WriteBasicType(os, binary, item.first);
-	  WriteBasicType(os, binary, item.second);
+	  WriteBasicType(os, binary, item->first);
+	  WriteBasicType(os, binary, item->second);
 	}
-	for( const auto& item : param_index_map_ ) {
+	for( IndexIntMap::const_iterator item = param_index_map_.begin(); item != param_index_map_.end(); ++item ) {
 	  WriteToken(os, binary, "<ParamIndexBit>");
-	  WriteBasicType(os, binary, item.first);
-	  WriteBasicType(os, binary, item.second);
+	  WriteBasicType(os, binary, item->first);
+	  WriteBasicType(os, binary, item->second);
 	}
-	for( const auto& item : param_type_map_ ) {
+	for( IndexIntMap::const_iterator item = param_type_map_.begin(); item != param_type_map_.end(); ++item ) {
 	  WriteToken(os, binary, "<ParamTypeBit>");
-	  WriteBasicType(os, binary, item.first);
-	  WriteBasicType(os, binary, item.second);
+	  WriteBasicType(os, binary, item->first);
+	  WriteBasicType(os, binary, item->second);
 	}
 
 	if (!binary) os << "\n";
