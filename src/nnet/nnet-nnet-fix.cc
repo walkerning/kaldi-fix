@@ -26,6 +26,7 @@
 #include "nnet/nnet-various.h"
 #include "nnet/nnet-lstm-projected-streams.h"
 #include "nnet/nnet-blstm-projected-streams.h"
+#include "nnet/nnet-nnet-fix.h"
 
 namespace kaldi {
 namespace nnet1 {
