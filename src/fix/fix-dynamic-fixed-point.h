@@ -52,9 +52,9 @@ namespace kaldi {
 	  result = f / (1 << -frag_pos);
 	}
 
-	if (result > maxnum){
+	if (result > maxnum) {
 	  result = maxnum;
-	} else if (result < minnum){
+	} else if (result < minnum) {
 	  result = minnum;
 	}
 
@@ -117,7 +117,8 @@ namespace kaldi {
       }
 
       virtual void DoFixBlob(CuMatrixBase<BaseFloat> &blob, int n) {
-	int bit_num = BlobBitNum(n);
+	Matrix<BaseFloat> blob_cpu = Matrix<BaseFloat>(blob);
+	DoFixBlob(blob_cpu, n);
 	// cuda max
 	// cuda kernel to convert
       }
