@@ -57,6 +57,8 @@ namespace kaldi {
 	} else if (result < minnum) {
 	  result = minnum;
 	}
+	
+	result = BaseFloat(int(result));
 
 	return result;
       }
