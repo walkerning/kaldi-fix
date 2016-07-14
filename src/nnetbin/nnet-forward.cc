@@ -71,6 +71,10 @@ int main(int argc, char *argv[]) {
     po.Register("fix-config", &fix_config,
         "path to the config file of fix strategy");
 
+    std::string fix_config_line;
+    po.Register("fix-config-line", &fix_config_line,
+		"pass fix-point configuration in text format");
+
 
     po.Read(argc, argv);
 
@@ -96,8 +100,13 @@ int main(int argc, char *argv[]) {
     NnetFix nnet;
     nnet.Read(model_filename);
 
-    // Read the fix-point config 
-    nnet.InitFix(fix_config);
+    if (fix_config_line != "") {
+      // Read the fix-point config from cmd line
+      nnet.InitFixLine(fix_config_line);
+    } else {
+      // Read the fix-point config
+      nnet.InitFix(fix_config);
+    }
 
     // optionally remove softmax,
     Component::ComponentType last_comp_type = nnet.GetLastComponent().GetType();

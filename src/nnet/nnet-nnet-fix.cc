@@ -33,7 +33,15 @@ namespace nnet1 {
 
 
 void NnetFix::InitFix(std::string fix_config){
-  fix_strategy_ = fix::FixStrategy::Read(fix_config);
+  if (fix_config == "") {
+    fix_strategy_ = fix::FixStrategy::NewNullStrategy();
+  } else {
+    fix_strategy_ = fix::FixStrategy::Read(fix_config);
+  }
+}
+
+void NnetFix::InitFixLine(std::string fix_config_line){
+  fix_strategy_ = fix::FixStrategy::Init(fix_config_line);
 }
 
 void NnetFix::ApplyWeightFix(){

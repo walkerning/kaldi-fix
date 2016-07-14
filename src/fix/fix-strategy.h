@@ -17,6 +17,7 @@ namespace kaldi {
 
 namespace kaldi {
   namespace fix {
+    
     class FixStrategy {
     public:
       /// Types of fix strategy
@@ -34,7 +35,6 @@ namespace kaldi {
 	const char *value;
       };
 
-      // static FixStrategy* Init(const std::string &conf_line);
       /// The table with pairs of strategy types and markers
       /// (defined in fix-strategy.cc),
       static const struct key_value kMarkerMap[];
@@ -47,6 +47,13 @@ namespace kaldi {
 	Input in(rxfilename, &binary);
 	std::tr1::shared_ptr<FixStrategy> strategy = Read(in.Stream(), binary);
 	in.Close(); 
+	return strategy;
+      }
+
+      static std::tr1::shared_ptr<FixStrategy> Init(const std::string &conf_line) {
+	bool binary = false;
+	std::istringstream is(conf_line);
+	std::tr1::shared_ptr<FixStrategy> strategy = Read(is, binary);
 	return strategy;
       }
 
@@ -71,6 +78,8 @@ namespace kaldi {
       virtual void Clear() {
 	// A stub as default implementation. 
       }
+
+      static std::tr1::shared_ptr<FixStrategy> NewNullStrategy();
 
     protected:
       // virtual functions to be implemented in derived classes

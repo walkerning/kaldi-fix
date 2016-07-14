@@ -33,6 +33,10 @@ namespace kaldi {
       return kUnknown;
     }
 
+    std::tr1::shared_ptr<FixStrategy> FixStrategy::NewNullStrategy() {
+      return std::tr1::shared_ptr<FixStrategy> (new NullStrategy());
+    }
+
     std::tr1::shared_ptr<FixStrategy> FixStrategy::Read(std::istream &is, bool binary) {
       std::string token;
       

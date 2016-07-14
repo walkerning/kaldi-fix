@@ -49,6 +49,7 @@ class NnetFix {
  public:
   /// For Nnet Fix
   void InitFix(std::string fix_config);
+  void InitFixLine(std::string fix_config_line);
   void ApplyWeightFix();
   void ApplyBlobFix(CuMatrix<BaseFloat> in, int32 blob_index);
   friend class fix::FixStrategy;
