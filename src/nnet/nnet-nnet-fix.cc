@@ -34,7 +34,7 @@ namespace nnet1 {
 
 void NnetFix::InitFix(std::string fix_config){
     if (fix_config != ""){
-        fix_strategy_ = FixStrategy::Read();
+        fix_strategy_ = fix::FixStrategy::Read();
     }
     else
     {

@@ -21,6 +21,7 @@
 #define KALDI_NNET_NNET_NNET_FIX_H_
 
 #include <string>
+#include <memory>
 #include <vector>
 #include <iostream>
 #include <sstream>
@@ -34,21 +35,20 @@
 #include "fix/fix-strategy.h"
 
 namespace kaldi {
-namespace nnet1 {
+  namespace nnet1 {
+    class NnetFix : public Nnet{
+    public:
+      void InitFix(std::string fix_config);
+      void ApplyWeightFix();
+      void ApplyBlobFix(CuMatrix<BaseFloat> in, int32 blob_index);
+      friend class fix::FixStrategy;
 
-class NnetFix : public Nnet{
-public:
-    InitFix(std::string fix_config);
-    ApplyWeightFix();
-    ApplyBlobFix(CuMatrix<BaseFloat> in, int32 blob_index);
-    friend class FixStrategy;
+    private:
+      std::shared_ptr<fix::FixStrategy> fix_strategy_;
 
-private:
-    shared_ptr<FixStrategy> fix_strategy_;
+    };
 
-};
-
-}  // namespace nnet1
+  }  // namespace nnet1
 }  // namespace kaldi
 
 #endif  // KALDI_NNET_NNET_NNET_FIX_H_
