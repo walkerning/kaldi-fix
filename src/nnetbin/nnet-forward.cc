@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
         "LSTM : repeat last input frame N-times, discrad N initial output frames.");
 
     std::string fix_config;
-    po.Register("fix_config", &fix_config,
+    po.Register("fix-config", &fix_config,
         "path to the config file of fix strategy");
 
 
