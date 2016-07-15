@@ -52,6 +52,9 @@ class NnetFix {
   void InitFixLine(std::string fix_config_line);
   void ApplyWeightFix();
   void ApplyBlobFix(CuMatrix<BaseFloat> in, int32 blob_index);
+  std::string GetFixStrategyType() {
+    return fix::FixStrategy::TypeToMarker(fix_strategy_->GetType());
+  }
   friend class fix::FixStrategy;
 
  private:

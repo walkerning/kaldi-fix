@@ -8,6 +8,7 @@ namespace kaldi {
 
     const struct FixStrategy::key_value FixStrategy::kMarkerMap[] = {
       { FixStrategy::kDynamicFixedPoint, "<DynamicFixedPoint>" },
+      { FixStrategy::kNullStrategy, "<NullStrategy>" }
     };
 
     const char* FixStrategy::TypeToMarker(StrategyType t) {

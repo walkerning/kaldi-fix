@@ -108,6 +108,7 @@ int main(int argc, char *argv[]) {
       nnet.InitFix(fix_config);
     }
 
+    KALDI_LOG << "Using fix strategy : " << nnet.GetFixStrategyType();
     // optionally remove softmax,
     Component::ComponentType last_comp_type = nnet.GetLastComponent().GetType();
     if (no_softmax) {

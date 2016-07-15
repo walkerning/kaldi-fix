@@ -24,7 +24,6 @@ lattice_beam=8.0
 min_active=200
 max_active=7000 # limit of active tokens
 max_mem=50000000 # approx. limit to memory consumption during minimization in bytes
-nnet_forward_opts="--no-softmax=true --prior-scale=1.0"
 
 skip_scoring=false
 scoring_opts="--min-lmwt 4 --max-lmwt 15"
@@ -33,11 +32,14 @@ num_threads=1 # if >1, will use latgen-faster-parallel
 parallel_opts=   # Ignored now.
 use_gpu="no" # yes|no|optionaly
 # End configuration section.
+fixopts=""
 
 echo "$0 $@"  # Print the command line for logging
 
 [ -f ./path.sh ] && . ./path.sh; # source the path.
 . parse_options.sh || exit 1;
+
+nnet_forward_opts="--no-softmax=true --prior-scale=1.0 ${fixopts}"
 
 set -euo pipefail
 
