@@ -6,6 +6,7 @@
 #include <algorithm>
 
 #include "fix/fix-strategy.h"
+#include "fix/fix-kernels-ansi.h"
 
 namespace kaldi {
   namespace fix {
@@ -40,6 +41,52 @@ namespace kaldi {
 	return DEFAULT_BLOB_BIT_NUM;
       }
 
+      int BlobFragPos(int n, const CuMatrixBase<BaseFloat>& blob, int bit_num) {
+	int frag_pos;
+	IndexIntMap::const_iterator got;
+	if ((got = blob_frag_pos_map_.find(n)) != blob_frag_pos_map_.end()) {
+	  frag_pos = got->second;
+	} else {
+	  BaseFloat b_max = std::max(fabs(blob.Max()), fabs(blob.Min()));
+	  blob_frag_pos_map_[n] = frag_pos = bit_num - 1 - ceil(log(b_max) / log(2));
+	}
+	return frag_pos;
+      }
+
+      int BlobFragPos(int n, const MatrixBase<BaseFloat>& blob, int bit_num) {
+	int frag_pos;
+	IndexIntMap::const_iterator got;
+	if ((got = blob_frag_pos_map_.find(n)) != blob_frag_pos_map_.end()) {
+	  frag_pos = got->second;
+	} else {
+	  BaseFloat b_max = std::max(fabs(blob.Max()), fabs(blob.Min()));
+	  blob_frag_pos_map_[n] = frag_pos = bit_num - 1 - ceil(log(b_max) / log(2));
+	}
+	return frag_pos;
+      }
+
+      int ParamFragPos(int n, const VectorBase<BaseFloat>& blob, int bit_num) {
+	int frag_pos;
+	const BaseFloat* data = blob.Data();
+	int dim = blob.Dim();
+
+	IndexIntMap::const_iterator got;
+	if ((got = param_frag_pos_map_.find(n)) != param_frag_pos_map_.end()) {
+	  frag_pos = got->second;
+	} else {
+	  // FIXME: Or use VectorBase::Max/Min instead?
+	  /* BaseFloat max_num = blob.Max(); */
+	  /* BaseFloat min_num = blob.Min(); */
+
+	  BaseFloat max_num = *std::max_element(data, data + dim);
+	  BaseFloat min_num = *std::min_element(data, data + dim);
+
+	  BaseFloat b_max = std::max(fabs(max_num), fabs(min_num));
+	  param_frag_pos_map_[n] = frag_pos = bit_num - 1 - ceil(log(b_max) / log(2));
+	}
+	return frag_pos;
+      }
+      
       static BaseFloat Float2Fix(BaseFloat f, int bit_num, int frag_pos) {
 	int bitvalid = bit_num - 1;
 	int maxnum = ((1) << bitvalid) - 1;
@@ -124,47 +171,45 @@ namespace kaldi {
       }
 
       virtual void DoFixBlob(CuMatrixBase<BaseFloat> &blob, int n) {
+#if HAVE_CUDA == 1
+	// handle data on GPU
+	int bit_num = BlobBitNum(n);
+	int frag_pos = BlobFragPos(n, blob, bit_num);
+
+	// convert float to fix
+	BaseFloat multiplier;
+	if (frag_pos >= 0) {
+	  multiplier = (1 << frag_pos);
+	} else {
+	  multiplier = 1. / (1 << -frag_pos);
+	}
+
+	blob.Scale(multiplier);
+
+	int bitvalid = bit_num - 1;
+	float maxnum = (1 << bitvalid) - 1;
+	float minnum = -(1 << bitvalid);
+	dim3 dimGrid, dimBlock;
+	GetBlockSizesForSimpleMatrixOperation(blob.NumRows(), blob.NumCols(),
+					       &dimGrid, &dimBlock);
+	cuda_saturate(dimGrid, dimBlock, blob.NumRows() * blob.NumCols(),
+		      blob.Data(), maxnum, minnum);
+
+	blob.Scale(1. / multiplier);
+#else
+	// Copy to CPU and handled
 	Matrix<BaseFloat> blob_cpu = Matrix<BaseFloat>(blob);
 	DoFixBlob(blob_cpu, n);
-	// cuda max
-	// cuda kernel to convert
+#endif
       }
 
       virtual void DoFixBlob(MatrixBase<BaseFloat> &blob, int n) {
 	int bit_num = BlobBitNum(n);
+	int frag_pos = BlobFragPos(n, blob, bit_num);
+
 	BaseFloat* data = blob.Data();
 	MatrixIndexT stride = blob.Stride();
-
-	int frag_pos;
-	IndexIntMap::const_iterator got;
-	if ((got = blob_frag_pos_map_.find(n)) != blob_frag_pos_map_.end()) {
-	  frag_pos = got->second;
-	} else {
-	  BaseFloat max_num = std::numeric_limits<BaseFloat>::min();
-	  BaseFloat min_num = std::numeric_limits<BaseFloat>::max();
-
-	  if (blob.NumCols() == stride) {
-	    max_num = *std::max_element(data,
-				       data + blob.NumRows() * blob.NumCols());
-	    min_num = *std::min_element(data,
-				       data + blob.NumRows() * blob.NumCols());
-	  } else {
-	    for (MatrixIndexT i = 0; i < blob.NumRows(); i++) {
-	      BaseFloat tmp_max_num = *std::max_element(data, data + blob.NumCols());
-	      BaseFloat tmp_min_num = *std::min_element(data, data + blob.NumCols());
-	      if (tmp_max_num > max_num) {
-		max_num = tmp_max_num;
-	      }
-	      if (tmp_min_num < min_num) {
-		min_num = tmp_min_num;
-	      }
-	      data += stride;
-	    }
-	  }
-	  BaseFloat b_max = std::max(fabs(max_num), fabs(min_num));
-	  blob_frag_pos_map_[n] = frag_pos = bit_num - 1 - ceil(log(b_max) / log(2));
-	}
-
+	
 	// float to fix
 	for (MatrixIndexT i = 0; i < blob.NumRows(); i++) {
 	  for (MatrixIndexT j = 0; j < blob.NumCols(); j++) {
@@ -178,21 +223,9 @@ namespace kaldi {
 			      Component::ComponentType comp_type,
 			      int n) {
 	int bit_num = ParamBitNum(n, comp_type);
+	int frag_pos = ParamFragPos(n, blob, bit_num);
+
 	BaseFloat* data = blob.Data();
-	MatrixIndexT dim = blob.Dim();
-	
-	int frag_pos;
-	IndexIntMap::const_iterator got;
-	if ((got = param_frag_pos_map_.find(n)) != param_frag_pos_map_.end()) {
-	  frag_pos = got->second;
-	} else {
-	  BaseFloat max_num = *std::max_element(data, data + dim);
-	  BaseFloat min_num = *std::min_element(data, data + dim);
-
-	  BaseFloat b_max = std::max(fabs(max_num), fabs(min_num));
-	  param_frag_pos_map_[n] = frag_pos = bit_num - 1 - ceil(log(b_max) / log(2));
-	}
-
 	// float to fix
 	for (MatrixIndexT i = 0; i < blob.Dim(); i++) {
 	  data[i] = Float2Fix(data[i], bit_num, frag_pos);

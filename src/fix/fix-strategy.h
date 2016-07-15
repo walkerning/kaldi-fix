@@ -87,7 +87,7 @@ namespace kaldi {
 
       virtual void WriteData(std::ostream &os, bool binary) const = 0;
  
-      virtual void DoFixBlob(CuMatrixBase<BaseFloat> &blob, int n) = 0;
+      virtual void DoFixBlob(CuMatrixBase<BaseFloat> &blob, int n) {}
 
       virtual void DoFixBlob(MatrixBase<BaseFloat> &blob, int n) = 0;
 
