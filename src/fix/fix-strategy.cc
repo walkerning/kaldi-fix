@@ -92,13 +92,17 @@ namespace kaldi {
 
     void FixStrategy::FixParam(kaldi::nnet1::NnetFix& nnet_fix) {
       Vector<BaseFloat> vector;
+      nnet_fix.GetParams(&vector);
+      int32 pos = 0;
       for (int32 n = 0; n < nnet_fix.NumComponents(); n++) {
 	// FIXME: 是不是updatable代表需要定点
 	if (nnet_fix.GetComponent(n).IsUpdatable()) {
-	  dynamic_cast<kaldi::nnet1::UpdatableComponent&>(nnet_fix.GetComponent(n)).GetParams(&vector);
+	  int32 num_params = dynamic_cast<kaldi::nnet1::UpdatableComponent&>(nnet_fix.GetComponent(n)).NumParams();
+	  SubVector<BaseFloat> vector_range(vector.Range(pos, num_params));
+	  this->DoFixParam(vector_range, nnet_fix.GetComponent(n).GetType(), n);
+	  dynamic_cast<kaldi::nnet1::UpdatableComponent&>(nnet_fix.GetComponent(n)).SetParams(vector_range);
+	  pos += num_params;
 	}
- 	this->DoFixParam(vector, nnet_fix.GetComponent(n).GetType(), n);
-	dynamic_cast<kaldi::nnet1::UpdatableComponent&>(nnet_fix.GetComponent(n)).SetParams(vector);
       }
     }
 
