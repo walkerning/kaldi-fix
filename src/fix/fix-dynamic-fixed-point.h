@@ -47,7 +47,7 @@ namespace kaldi {
         BaseFloat result = 0;
 	// FIXME: 这个策略实现不确定对不对
         if (frag_pos >= 0) {
-	  result = f * ( 1 << frag_pos);
+	  result = f * (1 << frag_pos);
 	} else {
 	  result = f / (1 << -frag_pos);
 	}
@@ -59,6 +59,11 @@ namespace kaldi {
 	}
 	
 	result = BaseFloat(int(result));
+	if (frag_pos >= 0) {
+	  result = result / (1 << frag_pos);
+	} else {
+	  result = result * (1 << -frag_pos);
+	}
 
 	return result;
       }
@@ -79,18 +84,18 @@ namespace kaldi {
 
 	  int first_char = PeekToken(is, binary);
 	  switch (first_char) {
-	  case 'I': ReadToken(is, false, &token);
-	    if (token == "<BlobIndexBit>") {
-	      ReadBasicType(is, binary, &index);
-	      ReadBasicType(is, binary, &blob_index_map_[index]);
+	  case 'B': ExpectToken(is, binary, "<BlobIndexBit>");
+	    ReadBasicType(is, binary, &index);
+	    ReadBasicType(is, binary, &blob_index_map_[index]);
+	    break;
+	  case 'P': ReadToken(is, false, &token);
+	    if (token == "<ParamTypeBit>") {
+	      ReadBasicType(is, binary, &raw_type);
+	      ReadBasicType(is, binary, &param_type_map_[raw_type]);
 	    } else if (token == "<ParamIndexBit>") {
 	      ReadBasicType(is, binary, &index);
 	      ReadBasicType(is, binary, &param_index_map_[index]);
 	    }
-	    break;
-	  case 'T': ExpectToken(is, binary, "<ParamTypeBit>");
-	    ReadBasicType(is, binary, &raw_type);
-	    ReadBasicType(is, binary, &param_type_map_[raw_type]);
 	    break;
 	  default: ReadToken(is, false, &token);
 	    KALDI_ERR << "Unknown token: " << token;
