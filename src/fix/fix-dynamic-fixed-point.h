@@ -26,7 +26,7 @@ namespace kaldi {
 	if ((got_index = param_index_map_.find(n)) != param_index_map_.end()) {
 	  return got_index->second;
 	}
-	if ((got_type = param_type_map_.find(static_cast<int> (_type))) == param_type_map_.end()) {
+	if ((got_type = param_type_map_.find(static_cast<int> (_type))) != param_type_map_.end()) {
 	  return got_type->second;
 	}
 	return DEFAULT_PARAM_BIT_NUM;
@@ -34,7 +34,7 @@ namespace kaldi {
 
       int BlobBitNum(int n) const {
 	IndexIntMap::const_iterator got;
-	if ((got = blob_index_map_.find(n)) == blob_index_map_.end()) {
+	if ((got = blob_index_map_.find(n)) != blob_index_map_.end()) {
 	  return got->second;
 	}
 	return DEFAULT_BLOB_BIT_NUM;
