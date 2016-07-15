@@ -48,7 +48,7 @@ namespace kaldi {
       std::tr1::shared_ptr<FixStrategy> ans = std::tr1::shared_ptr<FixStrategy>(NewStrategyOfType(MarkerToType(token)));
       ans -> ReadData(is, binary);
 
-      ExpectToken(is, binary, "<!EndOfStrategy>");
+      // ExpectToken(is, binary, "<!EndOfStrategy>");
       return ans;
     }
 
