@@ -7,6 +7,12 @@
 #include "fix/fix-null-strategy.h"
 using namespace std;
 
+static int _test_status = 0;
+#define _FIX_TEST_ASSERT(cond) do {\
+    KALDI_ASSERT(cond);            \
+    if (!cond) _test_status = 1;   \
+  } while (0)
+
 int main()
 {
   string cases[] = {
@@ -20,6 +26,7 @@ int main()
     "<DynamicFixedPoint> <ParamIndexBit> 0 16 <ParamIndexBit> 1 8 <ParamIndexBit> 2 4",
     "<DynamicFixedPoint> <BlobIndexBit> 2 4 <ParamIndexBit> 0 16 <ParamIndexBit> 1 8 <BlobIndexBit> 4 16 <ParamIndexBit> 2 4",
     "<DynamicFixedPoint> <BlobIndexBit> 1 32 <ParamIndexBit> 3 8 <ParamIndexBit> 0 4 <ParamIndexBit> 2 4",
+    "<DynamicFixedPoint> <DefaultBlobBit> 16 <DefaultParamBit> 16 <BlobIndexBit> 0 32",
   };
   int n = sizeof(cases) / sizeof(string);
        
@@ -30,35 +37,42 @@ int main()
     switch (i) {
     case 2:
       {
-        assert(newstrategy->BlobBitNum(0)==16);
-        assert(newstrategy->BlobBitNum(1)==8);
-        assert(newstrategy->BlobBitNum(2)==8);
-        assert(newstrategy->ParamBitNum(0,kaldi::nnet1::Component::kUnknown)==8);
+        _FIX_TEST_ASSERT(newstrategy->BlobBitNum(0)==16);
+        _FIX_TEST_ASSERT(newstrategy->BlobBitNum(1)==8);
+        _FIX_TEST_ASSERT(newstrategy->BlobBitNum(2)==8);
+        _FIX_TEST_ASSERT(newstrategy->ParamBitNum(0,kaldi::nnet1::Component::kUnknown)==8);
         break;
       }
     case 3:
       {
-        assert(newstrategy->ParamBitNum(0,kaldi::nnet1::Component::kUnknown)==16);
-        assert(newstrategy->ParamBitNum(1,kaldi::nnet1::Component::kUnknown)==8);
-        assert(newstrategy->ParamBitNum(2,kaldi::nnet1::Component::kUnknown)==4);
-        assert(newstrategy->BlobBitNum(0)==8);
+        _FIX_TEST_ASSERT(newstrategy->ParamBitNum(0,kaldi::nnet1::Component::kUnknown)==16);
+        _FIX_TEST_ASSERT(newstrategy->ParamBitNum(1,kaldi::nnet1::Component::kUnknown)==8);
+        _FIX_TEST_ASSERT(newstrategy->ParamBitNum(2,kaldi::nnet1::Component::kUnknown)==4);
+        _FIX_TEST_ASSERT(newstrategy->BlobBitNum(0)==8);
         break;
       }
     case 4:
       {
-        assert(newstrategy->BlobBitNum(2)==4);
-        assert(newstrategy->BlobBitNum(4)==16);
-        assert(newstrategy->ParamBitNum(0,kaldi::nnet1::Component::kUnknown)==16);
-        assert(newstrategy->ParamBitNum(1,kaldi::nnet1::Component::kUnknown)==8);
-        assert(newstrategy->ParamBitNum(2,kaldi::nnet1::Component::kUnknown)==4);
+        _FIX_TEST_ASSERT(newstrategy->BlobBitNum(2)==4);
+        _FIX_TEST_ASSERT(newstrategy->BlobBitNum(4)==16);
+        _FIX_TEST_ASSERT(newstrategy->ParamBitNum(0,kaldi::nnet1::Component::kUnknown)==16);
+        _FIX_TEST_ASSERT(newstrategy->ParamBitNum(1,kaldi::nnet1::Component::kUnknown)==8);
+        _FIX_TEST_ASSERT(newstrategy->ParamBitNum(2,kaldi::nnet1::Component::kUnknown)==4);
         break;
       }
     case 5:
       {
-        assert(newstrategy->BlobBitNum(1)==32);
-        assert(newstrategy->ParamBitNum(3,kaldi::nnet1::Component::kUnknown)==8);
-        assert(newstrategy->ParamBitNum(0,kaldi::nnet1::Component::kUnknown)==4);
-        assert(newstrategy->ParamBitNum(2,kaldi::nnet1::Component::kUnknown)==4);
+        _FIX_TEST_ASSERT(newstrategy->BlobBitNum(1)==32);
+        _FIX_TEST_ASSERT(newstrategy->ParamBitNum(3,kaldi::nnet1::Component::kUnknown)==8);
+        _FIX_TEST_ASSERT(newstrategy->ParamBitNum(0,kaldi::nnet1::Component::kUnknown)==4);
+        _FIX_TEST_ASSERT(newstrategy->ParamBitNum(2,kaldi::nnet1::Component::kUnknown)==4);
+        break;
+      }
+    case 6:
+      {
+        _FIX_TEST_ASSERT(newstrategy->BlobBitNum(0)==32);
+        _FIX_TEST_ASSERT(newstrategy->BlobBitNum(1)==16);
+        _FIX_TEST_ASSERT(newstrategy->ParamBitNum(0,kaldi::nnet1::Component::kUnknown)==16);
         break;
       }
     default:
@@ -67,7 +81,6 @@ int main()
         break;
       }
     }
-
   }
-  return 0;
+  return _test_status;
 }

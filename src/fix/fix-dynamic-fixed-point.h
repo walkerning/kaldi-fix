@@ -16,6 +16,10 @@ namespace kaldi {
     class DynamicFixedPointStrategy : public FixStrategy {
 
     public:
+    DynamicFixedPointStrategy()
+      : default_param_bit_(DEFAULT_PARAM_BIT_NUM),
+        default_blob_bit_(DEFAULT_BLOB_BIT_NUM) {}
+
       StrategyType GetType() const { return kDynamicFixedPoint; }
 
       static const int DEFAULT_PARAM_BIT_NUM = 8;
@@ -30,7 +34,7 @@ namespace kaldi {
         if ((got_type = param_type_map_.find(static_cast<int> (_type))) != param_type_map_.end()) {
           return got_type->second;
         }
-        return DEFAULT_PARAM_BIT_NUM;
+        return default_param_bit_;
       }
 
       int BlobBitNum(int n) const {
@@ -38,7 +42,7 @@ namespace kaldi {
         if ((got = blob_index_map_.find(n)) != blob_index_map_.end()) {
           return got->second;
         }
-        return DEFAULT_BLOB_BIT_NUM;
+        return default_blob_bit_;
       }
 
       int BlobFragPos(int n, const CuMatrixBase<BaseFloat>& blob, int bit_num) {
@@ -131,20 +135,31 @@ namespace kaldi {
 
           int first_char = PeekToken(is, binary);
           switch (first_char) {
+          case 'D': ReadToken(is, binary, &token);
+            if (token == "<DefaultBlobBit>") {
+              ReadBasicType(is, binary, &default_blob_bit_);
+            } else if (token == "<DefaultParamBit>") {
+              ReadBasicType(is, binary, &default_param_bit_);
+            } else {
+              KALDI_ERR << "Unknown token: " << token;
+            }
+            break;
           case 'B': ExpectToken(is, binary, "<BlobIndexBit>");
             ReadBasicType(is, binary, &index);
             ReadBasicType(is, binary, &blob_index_map_[index]);
             break;
-          case 'P': ReadToken(is, false, &token);
+          case 'P': ReadToken(is, binary, &token);
             if (token == "<ParamTypeBit>") {
               ReadBasicType(is, binary, &raw_type);
               ReadBasicType(is, binary, &param_type_map_[raw_type]);
             } else if (token == "<ParamIndexBit>") {
               ReadBasicType(is, binary, &index);
               ReadBasicType(is, binary, &param_index_map_[index]);
+            } else {
+              KALDI_ERR << "Unknown token: " << token;
             }
             break;
-          default: ReadToken(is, false, &token);
+          default: ReadToken(is, binary, &token);
             KALDI_ERR << "Unknown token: " << token;
           }
         }
@@ -172,8 +187,8 @@ namespace kaldi {
 
       virtual void DoFixBlob(CuMatrixBase<BaseFloat> &blob, int n) {
 #if HAVE_CUDA == 1
-                          // handle data on GPU
-                          int bit_num = BlobBitNum(n);
+        // handle data on GPU
+        int bit_num = BlobBitNum(n);
         int frag_pos = BlobFragPos(n, blob, bit_num);
 
         // convert float to fix
@@ -197,11 +212,11 @@ namespace kaldi {
 
         blob.Scale(1. / multiplier);
 #else
-          // Copy to CPU and handled
-          Matrix<BaseFloat> blob_cpu = Matrix<BaseFloat>(blob);
+        // Copy to CPU and handled
+        Matrix<BaseFloat> blob_cpu = Matrix<BaseFloat>(blob);
         DoFixBlob(blob_cpu, n);
 #endif
-          }
+      }
 
       virtual void DoFixBlob(MatrixBase<BaseFloat> &blob, int n) {
         int bit_num = BlobBitNum(n);
@@ -240,6 +255,9 @@ namespace kaldi {
 
       IndexIntMap param_frag_pos_map_;
       IndexIntMap blob_frag_pos_map_;
+      
+      int default_param_bit_;
+      int default_blob_bit_;
     }; // end class DynamicFixedPointStrategy
   } // end namespace fix
 } // end namespace kaldi
