@@ -17,22 +17,22 @@ namespace kaldi {
 
 namespace kaldi {
   namespace fix {
-    
+   
     class FixStrategy {
     public:
       /// Types of fix strategy
       typedef enum {
-	kUnknown = 0x0,
+        kUnknown = 0x0,
 
-	kNullStrategy = 0x100,
+        kNullStrategy = 0x100,
 
-	kDynamicFixedPoint = 0x0200
+        kDynamicFixedPoint = 0x0200
       } StrategyType;
 
       /// A pair of type and marker,
       struct key_value {
-	const StrategyType key;
-	const char *value;
+        const StrategyType key;
+        const char *value;
       };
 
       /// The table with pairs of strategy types and markers
@@ -41,20 +41,20 @@ namespace kaldi {
 
       static const char* TypeToMarker(StrategyType t);
       static StrategyType MarkerToType(const std::string &s);
-      
+     
       static std::tr1::shared_ptr<FixStrategy> Read(const std::string &rxfilename) {
-	bool binary;
-	Input in(rxfilename, &binary);
-	std::tr1::shared_ptr<FixStrategy> strategy = Read(in.Stream(), binary);
-	in.Close(); 
-	return strategy;
+        bool binary;
+        Input in(rxfilename, &binary);
+        std::tr1::shared_ptr<FixStrategy> strategy = Read(in.Stream(), binary);
+        in.Close(); 
+        return strategy;
       }
 
       static std::tr1::shared_ptr<FixStrategy> Init(const std::string &conf_line) {
-	bool binary = false;
-	std::istringstream is(conf_line);
-	std::tr1::shared_ptr<FixStrategy> strategy = Read(is, binary);
-	return strategy;
+        bool binary = false;
+        std::istringstream is(conf_line);
+        std::tr1::shared_ptr<FixStrategy> strategy = Read(is, binary);
+        return strategy;
       }
 
       static std::tr1::shared_ptr<FixStrategy> Read(std::istream &is, bool binary);
@@ -66,17 +66,17 @@ namespace kaldi {
       virtual StrategyType GetType() const = 0;
 
       void FixParam(kaldi::nnet1::NnetFix& nnet_fix);
-      
+     
       void FixBlob(CuMatrixBase<BaseFloat> &blob, int n) {
-	this->DoFixBlob(blob, n);
+        this->DoFixBlob(blob, n);
       }
 
       void FixBlob(MatrixBase<BaseFloat> &blob, int n) {
-	this->DoFixBlob(blob, n);
+        this->DoFixBlob(blob, n);
       }
-      
+     
       virtual void Clear() {
-	// A stub as default implementation. 
+        // A stub as default implementation. 
       }
 
       static std::tr1::shared_ptr<FixStrategy> NewNullStrategy();
@@ -86,14 +86,14 @@ namespace kaldi {
       virtual void ReadData(std::istream &is, bool binary) = 0;
 
       virtual void WriteData(std::ostream &os, bool binary) const = 0;
- 
+
       virtual void DoFixBlob(CuMatrixBase<BaseFloat> &blob, int n) {}
 
       virtual void DoFixBlob(MatrixBase<BaseFloat> &blob, int n) = 0;
 
       virtual void DoFixParam(VectorBase<BaseFloat> &blob,
-			      kaldi::nnet1::Component::ComponentType comp_type,
-			      int n) = 0;
+                              kaldi::nnet1::Component::ComponentType comp_type,
+                              int n) = 0;
 
     private:
       static FixStrategy* NewStrategyOfType(StrategyType t);

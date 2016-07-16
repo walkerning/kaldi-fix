@@ -4,15 +4,15 @@ namespace kaldi {
   namespace fix {
     template <typename Real>
     __global__ void _saturate(const int count, Real* in,
-			      const int maxnum, const int minnum) {
+                              const int maxnum, const int minnum) {
       for (int index = blockIdx.x * blockDim.x + threadIdx.x;
-	   index < count; index += blockDim.x * gridDim.x) {
-	if (in[index] > maxnum) {
-	  in[index] = maxnum;
-	} else if (in[index] < minnum) {
-	  in[index] = minnum;
-	}
-	in[index] = Real(int(in[index]));
+           index < count; index += blockDim.x * gridDim.x) {
+        if (in[index] > maxnum) {
+          in[index] = maxnum;
+        } else if (in[index] < minnum) {
+          in[index] = minnum;
+        }
+        in[index] = Real(int(in[index]));
       }
     }
 

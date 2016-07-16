@@ -22,7 +22,7 @@ int main()
     "<DynamicFixedPoint> <BlobIndexBit> 1 32 <ParamIndexBit> 3 8 <ParamIndexBit> 0 4 <ParamIndexBit> 2 4",
   };
   int n = sizeof(cases) / sizeof(string);
-	
+       
   for (int i = 0; i < n; i++){
     cout << "Input: " << cases[i] << endl;
     tr1::shared_ptr<kaldi::fix::FixStrategy> strategy = kaldi::fix::FixStrategy::Init(cases[i]);
@@ -30,19 +30,19 @@ int main()
     switch (i) {
     case 2:
       {
-      assert(newstrategy->BlobBitNum(0)==16);
-      assert(newstrategy->BlobBitNum(1)==8);
-      assert(newstrategy->BlobBitNum(2)==8);
-      assert(newstrategy->ParamBitNum(0,kaldi::nnet1::Component::kUnknown)==8);
-      break;
+        assert(newstrategy->BlobBitNum(0)==16);
+        assert(newstrategy->BlobBitNum(1)==8);
+        assert(newstrategy->BlobBitNum(2)==8);
+        assert(newstrategy->ParamBitNum(0,kaldi::nnet1::Component::kUnknown)==8);
+        break;
       }
     case 3:
       {
-	assert(newstrategy->ParamBitNum(0,kaldi::nnet1::Component::kUnknown)==16);
+        assert(newstrategy->ParamBitNum(0,kaldi::nnet1::Component::kUnknown)==16);
         assert(newstrategy->ParamBitNum(1,kaldi::nnet1::Component::kUnknown)==8);
         assert(newstrategy->ParamBitNum(2,kaldi::nnet1::Component::kUnknown)==4);
         assert(newstrategy->BlobBitNum(0)==8);
-	break;
+        break;
       }
     case 4:
       {
@@ -51,7 +51,7 @@ int main()
         assert(newstrategy->ParamBitNum(0,kaldi::nnet1::Component::kUnknown)==16);
         assert(newstrategy->ParamBitNum(1,kaldi::nnet1::Component::kUnknown)==8);
         assert(newstrategy->ParamBitNum(2,kaldi::nnet1::Component::kUnknown)==4);
-	break;
+        break;
       }
     case 5:
       {
@@ -59,12 +59,12 @@ int main()
         assert(newstrategy->ParamBitNum(3,kaldi::nnet1::Component::kUnknown)==8);
         assert(newstrategy->ParamBitNum(0,kaldi::nnet1::Component::kUnknown)==4);
         assert(newstrategy->ParamBitNum(2,kaldi::nnet1::Component::kUnknown)==4);
-	break;
+        break;
       }
     default:
       {
-	printf("no need to test\n");
-	break;
+        printf("no need to test\n");
+        break;
       }
     }
 
