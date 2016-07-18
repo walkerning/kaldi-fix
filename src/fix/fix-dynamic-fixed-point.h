@@ -25,24 +25,35 @@ namespace kaldi {
       static const int DEFAULT_PARAM_BIT_NUM = 8;
       static const int DEFAULT_BLOB_BIT_NUM = 8;
 
-      int ParamBitNum(int n, Component::ComponentType _type) const {
+      int ParamBitNum(int n, Component::ComponentType _type) {
+        int bit_num = default_param_bit_;
+        IndexIntMap::const_iterator got;
         IndexIntMap::const_iterator got_index;
         IndexIntMap::const_iterator got_type;
-        if ((got_index = param_index_map_.find(n)) != param_index_map_.end()) {
-          return got_index->second;
-        }
-        if ((got_type = param_type_map_.find(static_cast<int> (_type))) != param_type_map_.end()) {
-          return got_type->second;
-        }
-        return default_param_bit_;
-      }
-
-      int BlobBitNum(int n) const {
-        IndexIntMap::const_iterator got;
-        if ((got = blob_index_map_.find(n)) != blob_index_map_.end()) {
+        if ((got = param_bit_num_map_.find(n)) != param_bit_num_map_.end()) {
           return got->second;
         }
-        return default_blob_bit_;
+        if ((got_index = param_index_map_.find(n)) != param_index_map_.end()) {
+          bit_num = got_index->second;
+        }
+        if ((got_type = param_type_map_.find(static_cast<int> (_type))) != param_type_map_.end()) {
+          bit_num = got_type->second;
+        }
+        param_bit_num_map_[n] = bit_num;
+        return bit_num;
+      }
+
+      int BlobBitNum(int n) {
+        int bit_num = default_blob_bit_;
+        IndexIntMap::const_iterator got;
+        if ((got = blob_bit_num_map_.find(n)) != param_bit_num_map_.end()) {
+          return got->second;
+        }
+        if ((got = blob_index_map_.find(n)) != blob_index_map_.end()) {
+          bit_num = got->second;
+        }
+        blob_bit_num_map_[n] = bit_num;
+        return bit_num;
       }
 
       int BlobFragPos(int n, const CuMatrixBase<BaseFloat>& blob, int bit_num) {
@@ -122,12 +133,16 @@ namespace kaldi {
       virtual void Clear() {
         param_index_map_.clear();
         blob_index_map_.clear();
+
+        param_bit_num_map_.clear();
+        blob_bit_num_map_.clear();
+
         param_frag_pos_map_.clear();
         blob_frag_pos_map_.clear();
       }
 
     protected:
-      virtual void ReadData(std::istream &is, bool binary) {
+      virtual void ReadConfigData(std::istream &is, bool binary) {
         while ('<' == Peek(is, binary)) {
           std::string token;
           int raw_type;
@@ -165,7 +180,7 @@ namespace kaldi {
         }
       }
      
-      virtual void WriteData(std::ostream &os, bool binary) const {
+      virtual void WriteConfigData(std::ostream &os, bool binary) const {
         for( IndexIntMap::const_iterator item = blob_index_map_.begin(); item != blob_index_map_.end(); ++item ) { 
           WriteToken(os, binary, "<BlobIndexBit>");
           WriteBasicType(os, binary, item->first);
@@ -183,6 +198,83 @@ namespace kaldi {
         }
 
         if (!binary) os << "\n";
+      }
+
+      virtual void ReadData(std::istream &is, bool binary) {
+        if ('<' == Peek(is, binary) && 'M' == PeekToken(is, binary)) {
+          // Only read data when file is not null and first token is <Data>
+          ExpectToken(is, binary, "<Model>");
+          innerReadData(is, binary);
+        } else {
+          ReadConfigData(is, binary);
+        }
+      }
+
+      void innerReadData(std::istream &is, bool binary) {
+        while ('<' == Peek(is, binary)) {
+          std::string token;
+          int index;
+
+          int first_char = PeekToken(is, binary);
+          switch (first_char) {
+          case 'F': ReadToken(is, binary, &token);
+            if (token == "<FragPosBlob>") {
+              ReadBasicType(is, binary, &index);
+              ReadBasicType(is, binary, &blob_frag_pos_map_[index]);
+            } else if (token == "<FragPosParam>") {
+              ReadBasicType(is, binary, &index);
+              ReadBasicType(is, binary, &param_frag_pos_map_[index]);
+            } else {
+              KALDI_ERR << "Unknown token: " << token;
+            }
+            break;
+          case 'B': ReadToken(is, binary, &token);
+            if (token == "<BitNumBlob>") {
+              ReadBasicType(is, binary, &index);
+              ReadBasicType(is, binary, &blob_bit_num_map_[index]);
+            } else if (token == "<BitNumParam>") {
+              ReadBasicType(is, binary, &index);
+              ReadBasicType(is, binary, &param_bit_num_map_[index]);
+            } else {
+              KALDI_ERR << "Unknown token: " << token;
+            }
+            break;
+          }
+        }
+      }
+
+      void innerWriteData(std::ostream &os, bool binary) const {
+        for( IndexIntMap::const_iterator item = param_bit_num_map_.begin(); item != param_bit_num_map_.end(); ++item ) { 
+          WriteToken(os, binary, "<BitNumParam>");
+          WriteBasicType(os, binary, item->first);
+          WriteBasicType(os, binary, item->second);
+        }
+        for( IndexIntMap::const_iterator item = blob_bit_num_map_.begin(); item != blob_bit_num_map_.end(); ++item ) { 
+          WriteToken(os, binary, "<BitNumBlob>");
+          WriteBasicType(os, binary, item->first);
+          WriteBasicType(os, binary, item->second);
+        }
+
+        for( IndexIntMap::const_iterator item = param_frag_pos_map_.begin(); item != param_frag_pos_map_.end(); ++item ) { 
+          WriteToken(os, binary, "<FragPosParam>");
+          WriteBasicType(os, binary, item->first);
+          WriteBasicType(os, binary, item->second);
+        }
+        for( IndexIntMap::const_iterator item = blob_frag_pos_map_.begin(); item != blob_frag_pos_map_.end(); ++item ) { 
+          WriteToken(os, binary, "<FragPosBlob>");
+          WriteBasicType(os, binary, item->first);
+          WriteBasicType(os, binary, item->second);
+        }
+        if (!binary) os << "\n";
+      }
+
+      virtual void WriteData(std::ostream &os, bool binary, bool config_only) const {
+        if (config_only) {
+          WriteConfigData(os, binary);
+        } else {
+          WriteToken(os, binary, "<Data>");
+          innerWriteData(os, binary);
+        }
       }
 
       virtual void DoFixBlob(CuMatrixBase<BaseFloat> &blob, int n) {
@@ -253,6 +345,8 @@ namespace kaldi {
 
       IndexIntMap blob_index_map_;
 
+      IndexIntMap param_bit_num_map_;
+      IndexIntMap blob_bit_num_map_;
       IndexIntMap param_frag_pos_map_;
       IndexIntMap blob_frag_pos_map_;
       

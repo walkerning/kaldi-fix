@@ -10,7 +10,7 @@ namespace kaldi {
       virtual StrategyType GetType() const { return kNullStrategy; }
     protected:
       virtual void ReadData(std::istream &is, bool binary) {}
-      virtual void WriteData(std::ostream &os, bool binary) const {}
+      virtual void WriteData(std::ostream &os, bool binary, bool config_only) const {}
       virtual void DoFixBlob(CuMatrixBase<BaseFloat> &blob, int n) {}
       virtual void DoFixBlob(MatrixBase<BaseFloat> &blob, int n) {}
       virtual void DoFixParam(VectorBase<BaseFloat> &blob,

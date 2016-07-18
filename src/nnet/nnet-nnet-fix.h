@@ -24,6 +24,7 @@
 #include <memory>
 #include <vector>
 #include <iostream>
+#include <fstream>
 #include <sstream>
 
 #include "base/kaldi-common.h"
@@ -48,6 +49,11 @@ class NnetFix {
 
  public:
   /// For Nnet Fix
+  void WriteFix(std::string o_model) {
+    std::ofstream os(o_model.c_str(), std::ofstream::out);
+    fix_strategy_->Write(os, false);
+    os.close();
+  }
   void InitFix(std::string fix_config);
   void InitFixLine(std::string fix_config_line);
   void ApplyWeightFix();

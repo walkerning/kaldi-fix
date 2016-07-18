@@ -33,13 +33,14 @@ parallel_opts=   # Ignored now.
 use_gpu="no" # yes|no|optionaly
 # End configuration section.
 fixopts=""
+fixmodelopt=""
 
 echo "$0 $@"  # Print the command line for logging
 
 [ -f ./path.sh ] && . ./path.sh; # source the path.
 . parse_options.sh || exit 1;
 
-nnet_forward_opts="--no-softmax=true --prior-scale=1.0 ${fixopts}"
+nnet_forward_opts="--no-softmax=true --prior-scale=1.0 ${fixopts} ${fixmodelopt}"
 
 set -euo pipefail
 

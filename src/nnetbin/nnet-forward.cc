@@ -75,6 +75,9 @@ int main(int argc, char *argv[]) {
     po.Register("fix-config-line", &fix_config_line,
 		"pass fix-point configuration in text format");
 
+    std::string write_fix_model;
+    po.Register("write-fix-model", &write_fix_model,
+                "Write the fragment position of fixed-point number and bit numbers");
 
     po.Read(argc, argv);
 
@@ -229,6 +232,10 @@ int main(int argc, char *argv[]) {
       }
       num_done++;
       tot_t += mat.NumRows();
+    }
+    
+    if (write_fix_model != "") {
+      nnet.WriteFix(write_fix_model);
     }
 
     // final message,

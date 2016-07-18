@@ -60,7 +60,7 @@ namespace kaldi {
       static std::tr1::shared_ptr<FixStrategy> Read(std::istream &is, bool binary);
 
       /// Write the component to a stream,
-      void Write(std::ostream &os, bool binary) const;
+      void Write(std::ostream &os, bool binary, bool config_only=false) const;
 
       /// Get Type Identification of the strategy type.
       virtual StrategyType GetType() const = 0;
@@ -85,7 +85,7 @@ namespace kaldi {
       // virtual functions to be implemented in derived classes
       virtual void ReadData(std::istream &is, bool binary) = 0;
 
-      virtual void WriteData(std::ostream &os, bool binary) const = 0;
+      virtual void WriteData(std::ostream &os, bool binary, bool config_only=false) const = 0;
 
       virtual void DoFixBlob(CuMatrixBase<BaseFloat> &blob, int n) {}
 

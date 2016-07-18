@@ -11,6 +11,7 @@ data_fmllr=data-fmllr-tri3
 stage=0 # resume training with --stage=N
 fixconf="./fix.conf"
 phase="test"
+fixmodel=""
 
 # End of config.
 . utils/parse_options.sh || exit 1;
@@ -33,10 +34,15 @@ if [[ ${debug} -ne 0 ]]; then
 else
     post_process="cut -d| -f1"
 fi
-
+fixopts="--fix-config=${fixconf}"
+fixmodelopt=""
+if [[ -n "${fixmodel}" ]]; then
+    fixmodelopt="--write-fix-model=${fixmodel}"
+fi
+echo "$fixopts"
 # Decode (reuse HCLG graph)
 steps/nnet/decode.sh --nj 20 --cmd "$decode_cmd" --acwt 0.2 --nnet $nnet \
-    --fixopts \'--fix-config=${fixconf}\' \
+    --fixopts  \'$fixopts\' --fixmodelopt \'$fixmodelopt\' \
     $gmmdir/graph $data_fmllr/${phase} $dir/decode_${phase} >/dev/null|| exit 1;
 
 # steps/nnet/decode.sh --nj 20 --cmd "$decode_cmd" --acwt 0.2 --nnet $nnet\

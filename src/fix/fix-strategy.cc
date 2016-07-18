@@ -52,11 +52,11 @@ namespace kaldi {
       return ans;
     }
 
-    void FixStrategy::Write(std::ostream &os, bool binary) const {
+    void FixStrategy::Write(std::ostream &os, bool binary, bool config_only) const {
       WriteToken(os, binary, FixStrategy::TypeToMarker(GetType()));
       if (!binary) os << "\n";
-      WriteData(os, binary);
-      WriteToken(os, binary, "<!EndOfStrategy>");  // Write component separator.
+      WriteData(os, binary, config_only);
+      // WriteToken(os, binary, "<!EndOfStrategy>");  // Write component separator.
       if (!binary) os << "\n";
     }
 
