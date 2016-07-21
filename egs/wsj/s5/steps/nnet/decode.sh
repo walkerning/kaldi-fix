@@ -40,7 +40,10 @@ echo "$0 $@"  # Print the command line for logging
 [ -f ./path.sh ] && . ./path.sh; # source the path.
 . parse_options.sh || exit 1;
 
-nnet_forward_opts="--no-softmax=true --prior-scale=1.0 ${fixopts} ${fixmodelopt}"
+nnet_forward_opts="--no-softmax=true --prior-scale=1.0 ${fixopts}"
+if [[ -n "${fixmodelopt}" ]]; then
+    nnet_forward_opts="${nnet_forward_opts} ${fixmodelopt}"
+fi
 
 set -euo pipefail
 

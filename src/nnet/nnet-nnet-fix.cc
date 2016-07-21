@@ -38,6 +38,12 @@ void NnetFix::InitFix(std::string fix_config){
   } else {
     fix_strategy_ = fix::FixStrategy::Read(fix_config);
   }
+  for (int32 i = 0; i < NumComponents(); i++) {
+    // Backpropagate through 'Component',
+    if (components_[i]->IsUpdatable()) {
+      dynamic_cast<UpdatableComponent*>(components_[i])->InitFix(fix_strategy_, i);
+    }
+  }
 }
 
 void NnetFix::InitFixLine(std::string fix_config_line){

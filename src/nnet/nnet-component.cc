@@ -39,7 +39,7 @@
 #include "nnet/nnet-average-pooling-2d-component.h"
 #include "nnet/nnet-max-pooling-2d-component.h"
 
-#include "nnet/nnet-lstm-projected-streams.h"
+#include "nnet/nnet-lstm-projected-streams-fix.h"
 #include "nnet/nnet-blstm-projected-streams.h"
 
 #include "nnet/nnet-sentence-averaging-component.h"

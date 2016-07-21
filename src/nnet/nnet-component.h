@@ -24,12 +24,20 @@
 
 #include <iostream>
 #include <string>
+#include <tr1/memory>
 
 #include "base/kaldi-common.h"
 #include "matrix/matrix-lib.h"
 #include "cudamatrix/cu-matrix.h"
 #include "cudamatrix/cu-vector.h"
 #include "nnet/nnet-trnopts.h"
+
+// another ugly forward declaration
+namespace kaldi {
+namespace fix {
+class FixStrategy;
+}
+}
 
 namespace kaldi {
 namespace nnet1 {
@@ -215,6 +223,10 @@ class UpdatableComponent : public Component {
   /// Check if contains trainable parameters,
   bool IsUpdatable() const {
     return true;
+  }
+
+  // Added for fix point simulation
+  virtual void InitFix(std::tr1::shared_ptr<kaldi::fix::FixStrategy>, int n) {
   }
 
   /// Number of trainable parameters,

@@ -280,6 +280,7 @@ namespace kaldi {
       virtual void DoFixBlob(CuMatrixBase<BaseFloat> &blob, int n) {
 #if HAVE_CUDA == 1
         // handle data on GPU
+        std::cerr << "dofixblob gpu!!!" << std::endl;
         int bit_num = BlobBitNum(n);
         int frag_pos = BlobFragPos(n, blob, bit_num);
 

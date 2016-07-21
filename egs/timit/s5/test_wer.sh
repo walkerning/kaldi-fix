@@ -28,23 +28,25 @@ feature_transform=exp/dnn4_pretrain-dbn/final.feature_transform
 debug=${DEBUG:-1}
 if [[ ${debug} -ne 0 ]]; then
     echo "using fix-point config file: ${fixconf}"
-    echo "The configuration is: $(cat ${fixconf})" 
+    echo -e "The configuration is: \n\"\"\"$(cat ${fixconf})\n\"\"\"" 
     echo "Using nnet: $nnet"
     post_process="cat"
 else
     post_process="cut -d| -f1"
 fi
-fixopts="--fix-config=${fixconf}"
-fixmodelopt=""
+fixopts=--fixopts\ \'--fix-config=${fixconf}\'
+fixmodelopt=
 if [[ -n "${fixmodel}" ]]; then
-    fixmodelopt="--write-fix-model=${fixmodel}"
+    fixmodelopt=--fixmodelopt\ \'--write-fix-model=${fixmodel}\'
+    fixopts=${fixopts}\ ${fixmodelopt}
 fi
 echo "$fixopts"
+
 # Decode (reuse HCLG graph)
 steps/nnet/decode.sh --nj 20 --cmd "$decode_cmd" --acwt 0.2 --nnet $nnet \
-    --fixopts  \'$fixopts\' --fixmodelopt \'$fixmodelopt\' \
+    $fixopts \
     $gmmdir/graph $data_fmllr/${phase} $dir/decode_${phase} >/dev/null|| exit 1;
-
+ #--fixopts  \'$fixopts\'  \
 # steps/nnet/decode.sh --nj 20 --cmd "$decode_cmd" --acwt 0.2 --nnet $nnet\
 #     --fixopts \'--fix-config=${fixconf}\' \
 #     $gmmdir/graph $data_fmllr/dev $dir/decode_dev || exit 1;
