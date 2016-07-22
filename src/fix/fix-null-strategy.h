@@ -16,6 +16,8 @@ namespace kaldi {
       virtual void DoFixParam(VectorBase<BaseFloat> &blob,
                               Component::ComponentType comp_type,
                               int n) {}
+      virtual void DoFixSigm(CuMatrixBase<BaseFloat> &blob, int n) {}
+      virtual void DoFixTanh(CuMatrixBase<BaseFloat> &blob, int n) {}
     };
   }
 }

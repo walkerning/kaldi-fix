@@ -74,6 +74,16 @@ namespace kaldi {
       void FixBlob(MatrixBase<BaseFloat> &blob, int n) {
         this->DoFixBlob(blob, n);
       }
+
+      void FixSigm(CuMatrixBase<BaseFloat> &blob, int n)
+      {
+        this->DoFixSigm(blob, n);
+      }
+
+      void FixTanh(CuMatrixBase<BaseFloat> &blob, int n)
+      {
+        this->DoFixTanh(blob, n);
+      }
      
       virtual void Clear() {
         // A stub as default implementation. 
@@ -94,6 +104,10 @@ namespace kaldi {
       virtual void DoFixParam(VectorBase<BaseFloat> &blob,
                               kaldi::nnet1::Component::ComponentType comp_type,
                               int n) = 0;
+
+	  virtual void DoFixSigm(CuMatrixBase<BaseFloat> &blob, int n) = 0;
+	  
+	  virtual void DoFixTanh(CuMatrixBase<BaseFloat> &blob, int n) = 0;
 
     private:
       static FixStrategy* NewStrategyOfType(StrategyType t);

@@ -13,6 +13,7 @@ TESTFILES = fix-strategy-test
 OBJFILES = fix-strategy.o
 ifeq ($(CUDA), true)
   OBJFILES += fix-dynamic-fixed-point-gpu.o
+  OBJFILES += fix-nonlinear-gpu.o
 endif
 
 LIBNAME = kaldi-fix

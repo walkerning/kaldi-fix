@@ -452,11 +452,15 @@ class LstmProjectedStreams : public UpdatableComponent {
       fix_strategy_->FixBlob(y_if, fix_index_);
 
       // i, f sigmoid squashing
-      y_i.Sigmoid(y_i); // TODO
-      y_f.Sigmoid(y_f); // TODO
+      //y_i.Sigmoid(y_i); // TODO
+	  fix_strategy_->FixSigm(y_i, fix_index_);
+      //y_f.Sigmoid(y_f); // TODO
+	  fix_strategy_->FixSigm(y_f, fix_index_);
+
 
       // g tanh squashing
-      y_g.Tanh(y_g); // TODO
+      //y_g.Tanh(y_g); // TODO
+	  fix_strategy_->FixTanh(y_g, fix_index_);
       // FIXME: 如果Sigmoid里面自己处理了就不用 下面这两行了
       /* CuSubMatrix<BaseFloat> y_ifg(propagate_buf_.ColRange(1*ncell_, 3*ncell_).RowRange(t*S, S)); */
       /* fix_strategy_->FixBlob(y_ifg, fix_index_); */
@@ -472,14 +476,16 @@ class LstmProjectedStreams : public UpdatableComponent {
       fix_strategy_->FixBlob(y_c, fix_index_);
 
       // h tanh squashing
-      y_h.Tanh(y_c); //TODO
+      //y_h.Tanh(y_c); //TODO
+	  fix_strategy_->FixTanh(y_h, fix_index_);
 
       // c(t) -> o(t) via peephole (non-recurrent) & o squashing
       y_o.AddMatDiagVec(1.0, y_c, kNoTrans, peephole_o_c_, 1.0);
       fix_strategy_->FixBlob(y_o, fix_index_);
 
       // o sigmoid squashing
-      y_o.Sigmoid(y_o);
+      //y_o.Sigmoid(y_o);
+	  fix_strategy_->FixSigm(y_o, fix_index_);
 
       // h -> m via output gate
       y_m.AddMatMatElements(1.0, y_h, y_o, 0.0);

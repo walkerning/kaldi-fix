@@ -4,9 +4,11 @@
 #include <tr1/unordered_map>
 #include <limits>
 #include <algorithm>
+#include <cmath>
 
 #include "fix/fix-strategy.h"
 #include "fix/fix-kernels-ansi.h"
+#include "fix/fix-nonlinear-kernels-ansi.h"
 
 namespace kaldi {
   namespace fix {
@@ -337,6 +339,99 @@ namespace kaldi {
           data[i] = Float2Fix(data[i], bit_num, frag_pos);
         }
       }
+
+	  virtual void DoFixSigm(CuMatrixBase<BaseFloat> &blob, int n)
+	  {
+		  int bit_num = BlobBitNum(n);
+                  float amp = pow(2.0,bit_num-1);
+		  int num_p = 1024;
+		  float x_rang = 8;
+		  float *x_array = new float[num_p + 1];
+		  for (int i = 0; i < num_p + 1; i++)
+		  {
+			  x_array[i] = -1 + i * 2 / ((float)num_p);
+		  }
+		  int * x_arraybin = new int[num_p + 1];
+		  for (int i = 0; i < num_p + 1; i++)
+		  {
+			  x_arraybin[i] = (int)((x_array[i] + 1) * amp + 0.5);
+		  }
+		  float *y_array = new float[num_p + 1];
+		  for (int i = 0; i < num_p + 1; i++)
+		  {
+			  y_array[i] = 1 / (1 + exp(-x_array[i] * x_rang));
+		  }
+		  int *y_arraybin = new int[num_p + 1];
+		  for (int i = 0; i < num_p + 1; i++)
+		  {
+			  y_arraybin[i] = (int)(y_array[i] * amp + 0.5);
+		  }
+
+                  KALDI_LOG<<"1";
+                  Matrix<BaseFloat> try1;
+                  try1 = Matrix<BaseFloat>(blob);
+                  BaseFloat* data = try1.Data();
+                  for (int j=1;j<5;j++)
+                    {
+                      KALDI_LOG<<data[j]<<"  ";
+                    }
+
+		  dim3 dimGrid, dimBlock;
+		  GetBlockSizesForSimpleMatrixOperation(blob.NumRows(), blob.NumCols(), &dimGrid, &dimBlock);
+		  cuda_mapping(dimGrid, dimBlock, blob.NumRows() * blob.NumCols(), blob.Data(), x_rang, x_arraybin, y_arraybin, bit_num, num_p, 0, 1, amp);
+                  
+                  KALDI_LOG<<"2 ";
+
+                  try1 = Matrix<BaseFloat>(blob);
+                  data = try1.Data();
+
+                  for (int j=1;j<5;j++)
+                    {
+                      KALDI_LOG<<data[j]<<"  ";
+                    }
+
+		  delete[] x_array;
+		  delete[] y_array;
+		  delete[] x_arraybin;
+		  delete[] y_arraybin;
+	  }
+
+	  virtual void DoFixTanh(CuMatrixBase<BaseFloat> &blob, int n)
+	  {
+		  int bit_num = BlobBitNum(n);
+                  float amp = pow(2.0,bit_num-1);
+		  int num_p = 1024;
+		  float x_rang = 5;
+		  float *x_array = new float[num_p + 1];
+		  for (int i = 0; i < num_p + 1; i++)
+		  {
+			  x_array[i] = -1 + i * 2 / ((float)num_p);
+		  }
+		  int *x_arraybin = new int[num_p + 1];
+		  for (int i = 0; i < num_p + 1; i++)
+		  {
+			  x_arraybin[i] = (int)((x_array[i] + 1) * amp + 0.5);
+		  }
+		  float *y_array = new float[num_p + 1];
+		  for (int i = 0; i < num_p + 1; i++)
+		  {
+			  y_array[i] = (exp(x_array[i] * x_rang) - exp(-x_array[i] * x_rang)) / (exp(x_array[i] * x_rang) + exp(-x_array[i] * x_rang));
+		  }
+		  int *y_arraybin = new int[num_p + 1];
+		  for (int i = 0; i < num_p + 1; i++)
+		  {
+			  y_arraybin[i] = (int)(y_array[i] * amp + 0.5);
+		  }
+
+		  dim3 dimGrid, dimBlock;
+		  GetBlockSizesForSimpleMatrixOperation(blob.NumRows(), blob.NumCols(), &dimGrid, &dimBlock);
+		  cuda_mapping(dimGrid, dimBlock, blob.NumRows() * blob.NumCols(), blob.Data(), x_rang, x_arraybin, y_arraybin, bit_num, num_p, -1, 1, amp);
+
+		  delete[] x_array;
+		  delete[] y_array;
+		  delete[] x_arraybin;
+		  delete[] y_arraybin;
+	  }
 
     private:
       IndexIntMap param_type_map_;
