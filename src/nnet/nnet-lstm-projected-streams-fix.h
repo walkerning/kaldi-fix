@@ -121,16 +121,6 @@ class LstmProjectedStreams : public UpdatableComponent {
   void InitFix(std::tr1::shared_ptr<kaldi::fix::FixStrategy> fix_strategy, int n) {
     fix_strategy_ = fix_strategy;
     fix_index_ = n + 1;
-    
-    /* //FIXME: 思来想去还是不这样了。。。干脆要求配置文件写全好了... */
-    /* if (fix_strategy->GetType() == kaldi::fix::FixStrategy::kDynamicFixedPoint) { */
-
-    /*   // FIXME: 先尝试所有activation和参数的比特数和所有点的位置(frag_pos)都一样. 就直接用param初始化所有的...或者如果有配置文件就用配置文件里的 */
-    /*   // FIXME: 为了快点完成任务... 不再想着支持其他strategy的类型了... 只支持dynamic fixed point strategy, 和null策略了 */
-    /*   Vector<BaseFloat> vector; */
-    /*   fix_all_bit_num_ = fix_strategy->ParamBitNum(n, GetType()); */
-    /*   fix_all_frag_pos_ = fix_strategy->ParamFragPos(n, GetParams(&vector), fix_bit_num_); */
-    /* } */
   }
 
   void ReadData(std::istream &is, bool binary) {

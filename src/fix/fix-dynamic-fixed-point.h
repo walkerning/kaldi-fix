@@ -202,7 +202,7 @@ namespace kaldi {
 
       virtual void ReadData(std::istream &is, bool binary) {
         if ('<' == Peek(is, binary) && 'M' == PeekToken(is, binary)) {
-          // Only read data when file is not null and first token is <Data>
+          // Only read data when file is not null and first token is <Model>
           ExpectToken(is, binary, "<Model>");
           innerReadData(is, binary);
         } else {
@@ -272,7 +272,7 @@ namespace kaldi {
         if (config_only) {
           WriteConfigData(os, binary);
         } else {
-          WriteToken(os, binary, "<Data>");
+          WriteToken(os, binary, "<Model>");
           innerWriteData(os, binary);
         }
       }
