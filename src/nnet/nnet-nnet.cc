@@ -24,7 +24,7 @@
 #include "nnet/nnet-activation.h"
 #include "nnet/nnet-affine-transform.h"
 #include "nnet/nnet-various.h"
-#include "nnet/nnet-lstm-projected-streams.h"
+#include "nnet/nnet-lstm-projected-streams-fix.h"
 #include "nnet/nnet-blstm-projected-streams.h"
 
 namespace kaldi {

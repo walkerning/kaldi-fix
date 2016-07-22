@@ -12,6 +12,8 @@ stage=0 # resume training with --stage=N
 fixconf="./fix.conf"
 phase="test"
 fixmodel=""
+#feature_trans=""
+model=""
 
 # End of config.
 . utils/parse_options.sh || exit 1;
@@ -20,6 +22,7 @@ fixmodel=""
 
 dir=${model:-exp/dnn4_pretrain-dbn_dnn}
 ali=${gmmdir}_ali
+#feature_transform=${feature_trans:-exp/dnn4_pretrain-dbn/final.feature_transform}
 feature_transform=exp/dnn4_pretrain-dbn/final.feature_transform
 
 [ -z "$1" ] && nnet=$dir/final.nnet
@@ -43,10 +46,12 @@ fi
 echo "$fixopts"
 
 # Decode (reuse HCLG graph)
-steps/nnet/decode.sh --nj 20 --cmd "$decode_cmd" --acwt 0.2 --nnet $nnet \
+steps/nnet/decode.sh --nj 1 --cmd "$decode_cmd" --acwt 0.2 --use-gpu "yes" --nnet $nnet \
     $fixopts \
     $gmmdir/graph $data_fmllr/${phase} $dir/decode_${phase} >/dev/null|| exit 1;
- #--fixopts  \'$fixopts\'  \
+
+#--fixopts  \'$fixopts\'  \
+
 # steps/nnet/decode.sh --nj 20 --cmd "$decode_cmd" --acwt 0.2 --nnet $nnet\
 #     --fixopts \'--fix-config=${fixconf}\' \
 #     $gmmdir/graph $data_fmllr/dev $dir/decode_dev || exit 1;

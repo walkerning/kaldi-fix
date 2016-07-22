@@ -24,7 +24,7 @@
 #include "nnet/nnet-activation.h"
 #include "nnet/nnet-affine-transform.h"
 #include "nnet/nnet-various.h"
-#include "nnet/nnet-lstm-projected-streams.h"
+#include "nnet/nnet-lstm-projected-streams-fix.h"
 #include "nnet/nnet-blstm-projected-streams.h"
 #include "nnet/nnet-nnet-fix.h"
 
@@ -48,6 +48,12 @@ void NnetFix::InitFix(std::string fix_config){
 
 void NnetFix::InitFixLine(std::string fix_config_line){
   fix_strategy_ = fix::FixStrategy::Init(fix_config_line);
+  for (int32 i = 0; i < NumComponents(); i++) {
+    // Backpropagate through 'Component',
+    if (components_[i]->IsUpdatable()) {
+      dynamic_cast<UpdatableComponent*>(components_[i])->InitFix(fix_strategy_, i);
+    }
+  }
 }
 
 void NnetFix::ApplyWeightFix(){

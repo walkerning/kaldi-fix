@@ -119,7 +119,7 @@ class LstmProjectedStreams : public UpdatableComponent {
   }
 
   void InitFix(std::tr1::shared_ptr<kaldi::fix::FixStrategy> fix_strategy, int n) {
-    fix_strategy_ = fix_strategy_;
+    fix_strategy_ = fix_strategy;
     fix_index_ = n + 1;
     
     /* //FIXME: 思来想去还是不这样了。。。干脆要求配置文件写全好了... */
