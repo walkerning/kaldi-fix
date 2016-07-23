@@ -1,5 +1,0 @@
-TODO
-------------
-
-- [ ] Test
-- [ ] GPU implementation

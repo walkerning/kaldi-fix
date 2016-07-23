@@ -123,7 +123,7 @@ namespace kaldi {
         int maxnum = ((1) << bitvalid) - 1;
         int minnum = -(1 << bitvalid);
         BaseFloat result = 0;
-        // FIXME: 这个策略实现不确定对不对
+
         if (frag_pos >= 0) {
           result = f * (1 << frag_pos);
         } else {
