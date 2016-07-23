@@ -299,8 +299,7 @@ namespace kaldi {
         dim3 dimGrid, dimBlock;
         GetBlockSizesForSimpleMatrixOperation(blob.NumRows(), blob.NumCols(),
                                               &dimGrid, &dimBlock);
-        cuda_saturate(dimGrid, dimBlock, blob.NumRows() * blob.NumCols(),
-                      blob.Data(), maxnum, minnum);
+        cuda_saturate(dimGrid, dimBlock, blob.Data(), maxnum, minnum, blob.Dim());
 
         blob.Scale(1. / multiplier);
 #else
