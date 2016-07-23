@@ -23,7 +23,8 @@ namespace kaldi {
         default_blob_bit_(DEFAULT_BLOB_BIT_NUM),
         is_table_made(0), sigmoid_xrange_(8),
         tanh_xrange_(5), sigmoid_npoints_(1024),
-        tanh_npoints_(1024), sigmoid_amp_(1<<15),
+        tanh_npoints_(1024), sigmoid_expo_(15),
+        tanh_expo_(15), sigmoid_amp_(1<<15),
         tanh_amp_(1<<15) {}
 
       ~DynamicFixedPointStrategy() {
@@ -193,6 +194,23 @@ namespace kaldi {
               KALDI_ERR << "Unknown token: " << token;
             }
             break;
+          case 'N': ReadToken(is, binary, &token);
+            if (token == "<NonLinearSigmoid>") {
+              ReadBasicType(is, binary, &sigmoid_xrange_);  // x range
+              ReadBasicType(is, binary, &sigmoid_npoints_); // number of points
+              // the exponent to multiply to convert to integers
+              ReadBasicType(is, binary, &sigmoid_expo_); 
+              sigmoid_amp_ = 1 << sigmoid_expo_;
+            } else if (token == "<NonLinearTanh>") {
+              ReadBasicType(is, binary, &tanh_xrange_);  // x range
+              ReadBasicType(is, binary, &tanh_npoints_); // number of points
+              // the exponent to shift to convert to integers
+              ReadBasicType(is, binary, &tanh_expo_); 
+              tanh_amp_ = 1 << tanh_expo_;
+            } else {
+              KALDI_ERR << "Unknown token: " << token;
+            }
+            break;
           default: ReadToken(is, binary, &token);
             KALDI_ERR << "Unknown token: " << token;
           }
@@ -215,6 +233,18 @@ namespace kaldi {
           WriteBasicType(os, binary, item->first);
           WriteBasicType(os, binary, item->second);
         }
+
+        WriteToken(os, binary, "<NonLinearSigmoid>");
+        WriteBasicType(os, binary, sigmoid_xrange_);  // x range
+        WriteBasicType(os, binary, sigmoid_npoints_); // number of points
+        // the exponent to multiply to convert to integers
+        WriteBasicType(os, binary, sigmoid_expo_);
+
+        WriteToken(os, binary, "<NonLinearTanh>");
+        WriteBasicType(os, binary, tanh_xrange_);  // x range
+        WriteBasicType(os, binary, tanh_npoints_); // number of points
+        // the exponent to multiply to convert to integers
+        WriteBasicType(os, binary, tanh_expo_);
 
         if (!binary) os << "\n";
       }
@@ -258,6 +288,27 @@ namespace kaldi {
               KALDI_ERR << "Unknown token: " << token;
             }
             break;
+          case 'N': ReadToken(is, binary, &token);
+            if (token == "<NonLinearSigmoid>") {
+              ReadBasicType(is, binary, &sigmoid_xrange_);  // x range
+              ReadBasicType(is, binary, &sigmoid_npoints_); // number of points
+              int tmp_expo;
+              // the exponent to multiply to convert to integers
+              ReadBasicType(is, binary, &tmp_expo); 
+              sigmoid_amp_ = 1 << tmp_expo;
+            } else if (token == "<NonLinearTanh>") {
+              ReadBasicType(is, binary, &tanh_xrange_);  // x range
+              ReadBasicType(is, binary, &tanh_npoints_); // number of points
+              int tmp_expo;
+              // the exponent to multiply to convert to integers
+              ReadBasicType(is, binary, &tmp_expo); 
+              tanh_amp_ = 1 << tmp_expo;
+            } else {
+              KALDI_ERR << "Unknown token: " << token;
+            }
+            break;
+          default: ReadToken(is, binary, &token);
+            KALDI_ERR << "Unknown token: " << token;
           }
         }
       }
@@ -284,6 +335,19 @@ namespace kaldi {
           WriteBasicType(os, binary, item->first);
           WriteBasicType(os, binary, item->second);
         }
+
+        WriteToken(os, binary, "<NonLinearSigmoid>");
+        WriteBasicType(os, binary, sigmoid_xrange_);  // x range
+        WriteBasicType(os, binary, sigmoid_npoints_); // number of points
+        // the exponent to multiply to convert to integers
+        WriteBasicType(os, binary, sigmoid_expo_);
+
+        WriteToken(os, binary, "<NonLinearTanh>");
+        WriteBasicType(os, binary, tanh_xrange_);  // x range
+        WriteBasicType(os, binary, tanh_npoints_); // number of points
+        // the exponent to multiply to convert to integers
+        WriteBasicType(os, binary, tanh_expo_);
+
         if (!binary) os << "\n";
       }
 
@@ -460,6 +524,8 @@ namespace kaldi {
       int tanh_xrange_;
       int sigmoid_npoints_;
       int tanh_npoints_;
+      int sigmoid_expo_;
+      int tanh_expo_;
       BaseFloat sigmoid_amp_;
       BaseFloat tanh_amp_;
 
