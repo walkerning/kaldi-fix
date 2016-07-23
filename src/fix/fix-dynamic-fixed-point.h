@@ -20,7 +20,20 @@ namespace kaldi {
     public:
     DynamicFixedPointStrategy()
       : default_param_bit_(DEFAULT_PARAM_BIT_NUM),
-        default_blob_bit_(DEFAULT_BLOB_BIT_NUM) {}
+        default_blob_bit_(DEFAULT_BLOB_BIT_NUM),
+        is_table_made(0), sigmoid_xrange_(8),
+        tanh_xrange_(5), sigmoid_npoints_(1024),
+        tanh_npoints_(1024), sigmoid_amp_(1<<15),
+        tanh_amp_(1<<15) {}
+
+      ~DynamicFixedPointStrategy() {
+        if (is_table_made) {
+          CU_SAFE_CALL(cudaFree(sigmoid_x_));
+          CU_SAFE_CALL(cudaFree(sigmoid_y_));
+          CU_SAFE_CALL(cudaFree(tanh_x_));
+          CU_SAFE_CALL(cudaFree(tanh_y_));
+        }
+      }
 
       StrategyType GetType() const { return kDynamicFixedPoint; }
 
@@ -144,6 +157,10 @@ namespace kaldi {
       }
 
     protected:
+      virtual void Initialize() {
+        MakeTable();
+      }
+
       virtual void ReadConfigData(std::istream &is, bool binary) {
         while ('<' == Peek(is, binary)) {
           std::string token;
@@ -340,98 +357,88 @@ namespace kaldi {
         }
       }
 
-	  virtual void DoFixSigm(CuMatrixBase<BaseFloat> &blob, int n)
-	  {
-		  int bit_num = BlobBitNum(n);
-                  float amp = pow(2.0,bit_num-1);
-		  int num_p = 1024;
-		  float x_rang = 8;
-		  float *x_array = new float[num_p + 1];
-		  for (int i = 0; i < num_p + 1; i++)
-		  {
-			  x_array[i] = -1 + i * 2 / ((float)num_p);
-		  }
-		  int * x_arraybin = new int[num_p + 1];
-		  for (int i = 0; i < num_p + 1; i++)
-		  {
-			  x_arraybin[i] = (int)((x_array[i] + 1) * amp + 0.5);
-		  }
-		  float *y_array = new float[num_p + 1];
-		  for (int i = 0; i < num_p + 1; i++)
-		  {
-			  y_array[i] = 1 / (1 + exp(-x_array[i] * x_rang));
-		  }
-		  int *y_arraybin = new int[num_p + 1];
-		  for (int i = 0; i < num_p + 1; i++)
-		  {
-			  y_arraybin[i] = (int)(y_array[i] * amp + 0.5);
-		  }
+      void MakeTable() {
+        // Make sigmoid table
+        BaseFloat *sigmoid_x_array = new BaseFloat[sigmoid_npoints_ + 1];
+        int32 * sigmoid_x_bin = new int[sigmoid_npoints_ + 1];
+        BaseFloat *sigmoid_y_array = new BaseFloat[sigmoid_npoints_ + 1];
+        int32 *sigmoid_y_bin = new int[sigmoid_npoints_ + 1];
 
-                  KALDI_LOG<<"1";
-                  Matrix<BaseFloat> try1;
-                  try1 = Matrix<BaseFloat>(blob);
-                  BaseFloat* data = try1.Data();
-                  for (int j=1;j<5;j++)
-                    {
-                      KALDI_LOG<<data[j]<<"  ";
-                    }
+        for (int i = 0; i < sigmoid_npoints_ + 1; i++) {
+          sigmoid_x_array[i] = -1 + i * 2 / (static_cast<BaseFloat>(sigmoid_npoints_));
+        }
+        for (int i = 0; i < sigmoid_npoints_ + 1; i++) {
+          sigmoid_x_bin[i] = (int)((sigmoid_x_array[i] + 1) * sigmoid_amp_ + 0.5);
+        }
+        for (int i = 0; i < sigmoid_npoints_ + 1; i++) {
+          sigmoid_y_array[i] = 1 / (1 + exp(-sigmoid_x_array[i] * sigmoid_xrange_));
+        }
+        for (int i = 0; i < sigmoid_npoints_ + 1; i++) {
+          sigmoid_y_bin[i] = (int)(sigmoid_y_array[i] * sigmoid_amp_ + 0.5);
+        }
 
-		  dim3 dimGrid, dimBlock;
-		  GetBlockSizesForSimpleMatrixOperation(blob.NumRows(), blob.NumCols(), &dimGrid, &dimBlock);
-		  cuda_mapping(dimGrid, dimBlock, blob.NumRows() * blob.NumCols(), blob.Data(), x_rang, x_arraybin, y_arraybin, bit_num, num_p, 0, 1, amp);
-                  
-                  KALDI_LOG<<"2 ";
+        sigmoid_x_ = static_cast<int*>(CuDevice::Instantiate().Malloc((sigmoid_npoints_ + 1) * sizeof(int)));
+        CU_SAFE_CALL(cudaMemcpy(sigmoid_x_, sigmoid_x_bin, (sigmoid_npoints_ + 1) * sizeof(int),
+                                cudaMemcpyHostToDevice));
+        sigmoid_y_ = static_cast<int*>(CuDevice::Instantiate().Malloc((sigmoid_npoints_ + 1) * sizeof(int)));
+        CU_SAFE_CALL(cudaMemcpy(sigmoid_y_, sigmoid_y_bin, (sigmoid_npoints_ + 1) * sizeof(int),
+                                cudaMemcpyHostToDevice));
+        delete[] sigmoid_x_array;
+        delete[] sigmoid_y_array;
+        delete[] sigmoid_x_bin;
+        delete[] sigmoid_y_bin;
 
-                  try1 = Matrix<BaseFloat>(blob);
-                  data = try1.Data();
+        // Make tanh table
+        BaseFloat *tanh_x_array = new BaseFloat[tanh_npoints_ + 1];
+        int32 * tanh_x_bin = new int[tanh_npoints_ + 1];
+        BaseFloat *tanh_y_array = new BaseFloat[tanh_npoints_ + 1];
+        int32 *tanh_y_bin = new int[tanh_npoints_ + 1];
 
-                  for (int j=1;j<5;j++)
-                    {
-                      KALDI_LOG<<data[j]<<"  ";
-                    }
+        for (int i = 0; i < tanh_npoints_ + 1; i++) {
+          tanh_x_array[i] = -1 + i * 2 / ((BaseFloat)tanh_npoints_);
+        }
+        for (int i = 0; i < tanh_npoints_ + 1; i++) {
+          tanh_x_bin[i] = (int)((tanh_x_array[i] + 1) * tanh_amp_ + 0.5);
+        }
+        for (int i = 0; i < tanh_npoints_ + 1; i++) {
+          tanh_y_array[i] = (exp(tanh_x_array[i] * tanh_xrange_) - 
+                             exp(-tanh_x_array[i] * tanh_xrange_)) /
+            (exp(tanh_x_array[i] * tanh_xrange_) + exp(-tanh_x_array[i] * tanh_xrange_));
+        }
+        for (int i = 0; i < tanh_npoints_ + 1; i++) {
+          tanh_y_bin[i] = (int)(tanh_y_array[i] * tanh_amp_ + 0.5);
+        }
 
-		  delete[] x_array;
-		  delete[] y_array;
-		  delete[] x_arraybin;
-		  delete[] y_arraybin;
-	  }
+        tanh_x_ = static_cast<int*>(CuDevice::Instantiate().Malloc((tanh_npoints_ + 1) * sizeof(int)));
+        CU_SAFE_CALL(cudaMemcpy(tanh_x_, tanh_x_bin, (tanh_npoints_ + 1) * sizeof(int),
+                                cudaMemcpyHostToDevice));
+        tanh_y_ = static_cast<int*>(CuDevice::Instantiate().Malloc((tanh_npoints_ + 1) * sizeof(int)));
+        CU_SAFE_CALL(cudaMemcpy(tanh_y_, tanh_y_bin, (tanh_npoints_ + 1) * sizeof(int),
+                                cudaMemcpyHostToDevice));
 
-	  virtual void DoFixTanh(CuMatrixBase<BaseFloat> &blob, int n)
-	  {
-		  int bit_num = BlobBitNum(n);
-                  float amp = pow(2.0,bit_num-1);
-		  int num_p = 1024;
-		  float x_rang = 5;
-		  float *x_array = new float[num_p + 1];
-		  for (int i = 0; i < num_p + 1; i++)
-		  {
-			  x_array[i] = -1 + i * 2 / ((float)num_p);
-		  }
-		  int *x_arraybin = new int[num_p + 1];
-		  for (int i = 0; i < num_p + 1; i++)
-		  {
-			  x_arraybin[i] = (int)((x_array[i] + 1) * amp + 0.5);
-		  }
-		  float *y_array = new float[num_p + 1];
-		  for (int i = 0; i < num_p + 1; i++)
-		  {
-			  y_array[i] = (exp(x_array[i] * x_rang) - exp(-x_array[i] * x_rang)) / (exp(x_array[i] * x_rang) + exp(-x_array[i] * x_rang));
-		  }
-		  int *y_arraybin = new int[num_p + 1];
-		  for (int i = 0; i < num_p + 1; i++)
-		  {
-			  y_arraybin[i] = (int)(y_array[i] * amp + 0.5);
-		  }
+        // Relase all these extra cpu heap memory
+        // FIXME: if we want to support cpu calculation (pass in MatrixBase<BaseFloat>,
+        //        we'll still need these memory.
+        is_table_made = 1;
+        delete[] tanh_x_array;
+        delete[] tanh_y_array;
+        delete[] tanh_x_bin;
+        delete[] tanh_y_bin;
+      }
 
-		  dim3 dimGrid, dimBlock;
-		  GetBlockSizesForSimpleMatrixOperation(blob.NumRows(), blob.NumCols(), &dimGrid, &dimBlock);
-		  cuda_mapping(dimGrid, dimBlock, blob.NumRows() * blob.NumCols(), blob.Data(), x_rang, x_arraybin, y_arraybin, bit_num, num_p, -1, 1, amp);
+      virtual void DoFixSigm(CuMatrixBase<BaseFloat> &blob, int n) {
+        dim3 dimGrid, dimBlock;
+        GetBlockSizesForSimpleMatrixOperation(blob.NumRows(), blob.NumCols(), &dimGrid, &dimBlock);
+        cuda_mapping(dimGrid, dimBlock, blob.Data(), sigmoid_xrange_, sigmoid_x_, sigmoid_y_, sigmoid_npoints_, 0, 1, sigmoid_amp_, blob.Dim());
 
-		  delete[] x_array;
-		  delete[] y_array;
-		  delete[] x_arraybin;
-		  delete[] y_arraybin;
-	  }
+      }
+
+      virtual void DoFixTanh(CuMatrixBase<BaseFloat> &blob, int n)
+      {
+        dim3 dimGrid, dimBlock;
+        GetBlockSizesForSimpleMatrixOperation(blob.NumRows(), blob.NumCols(), &dimGrid, &dimBlock);
+        cuda_mapping(dimGrid, dimBlock, blob.Data(), tanh_xrange_, tanh_x_, tanh_y_, tanh_npoints_, -1, 1, tanh_amp_, blob.Dim());
+      }
 
     private:
       IndexIntMap param_type_map_;
@@ -446,6 +453,21 @@ namespace kaldi {
       
       int default_param_bit_;
       int default_blob_bit_;
+
+      // For nonlinear table lookup
+      int is_table_made;
+      int sigmoid_xrange_;
+      int tanh_xrange_;
+      int sigmoid_npoints_;
+      int tanh_npoints_;
+      BaseFloat sigmoid_amp_;
+      BaseFloat tanh_amp_;
+
+      int* sigmoid_x_; // on device
+      int* sigmoid_y_; // on device
+      int* tanh_x_;    // on device
+      int* tanh_y_;    // on device
+
     }; // end class DynamicFixedPointStrategy
   } // end namespace fix
 } // end namespace kaldi

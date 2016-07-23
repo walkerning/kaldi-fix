@@ -105,9 +105,11 @@ namespace kaldi {
                               kaldi::nnet1::Component::ComponentType comp_type,
                               int n) = 0;
 
-	  virtual void DoFixSigm(CuMatrixBase<BaseFloat> &blob, int n) = 0;
+      virtual void DoFixSigm(CuMatrixBase<BaseFloat> &blob, int n) = 0;
 	  
-	  virtual void DoFixTanh(CuMatrixBase<BaseFloat> &blob, int n) = 0;
+      virtual void DoFixTanh(CuMatrixBase<BaseFloat> &blob, int n) = 0;
+
+      virtual void Initialize() {}
 
     private:
       static FixStrategy* NewStrategyOfType(StrategyType t);
