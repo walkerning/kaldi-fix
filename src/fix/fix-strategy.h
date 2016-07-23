@@ -75,14 +75,18 @@ namespace kaldi {
         this->DoFixBlob(blob, n);
       }
 
-      void FixSigm(CuMatrixBase<BaseFloat> &blob, int n)
+      void FixSigm(CuMatrixBase<BaseFloat> &blob, 
+                   const CuMatrixBase<BaseFloat> &in,
+                   int n)
       {
-        this->DoFixSigm(blob, n);
+        this->DoFixSigm(blob, in, n);
       }
 
-      void FixTanh(CuMatrixBase<BaseFloat> &blob, int n)
+      void FixTanh(CuMatrixBase<BaseFloat> &blob, 
+                   const CuMatrixBase<BaseFloat> &in,
+                   int n)
       {
-        this->DoFixTanh(blob, n);
+        this->DoFixTanh(blob, in, n);
       }
      
       virtual void Clear() {
@@ -105,9 +109,13 @@ namespace kaldi {
                               kaldi::nnet1::Component::ComponentType comp_type,
                               int n) = 0;
 
-      virtual void DoFixSigm(CuMatrixBase<BaseFloat> &blob, int n) = 0;
+      virtual void DoFixSigm(CuMatrixBase<BaseFloat> &blob,
+                             const CuMatrixBase<BaseFloat> &in,
+                             int n) = 0;
 	  
-      virtual void DoFixTanh(CuMatrixBase<BaseFloat> &blob, int n) = 0;
+      virtual void DoFixTanh(CuMatrixBase<BaseFloat> &blob,
+                             const CuMatrixBase<BaseFloat> &in,
+                             int n) = 0;
 
       virtual void Initialize() {}
 

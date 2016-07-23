@@ -490,18 +490,22 @@ namespace kaldi {
         delete[] tanh_y_bin;
       }
 
-      virtual void DoFixSigm(CuMatrixBase<BaseFloat> &blob, int n) {
+      virtual void DoFixSigm(CuMatrixBase<BaseFloat> &blob,
+                             const CuMatrixBase<BaseFloat> &in,
+                             int n) {
         dim3 dimGrid, dimBlock;
         GetBlockSizesForSimpleMatrixOperation(blob.NumRows(), blob.NumCols(), &dimGrid, &dimBlock);
-        cuda_mapping(dimGrid, dimBlock, blob.Data(), sigmoid_xrange_, sigmoid_x_, sigmoid_y_, sigmoid_npoints_, 0, 1, sigmoid_amp_, blob.Dim());
+        cuda_mapping(dimGrid, dimBlock, blob.Data(), in.Data(), sigmoid_xrange_, sigmoid_x_, sigmoid_y_, sigmoid_npoints_, 0, 1, sigmoid_amp_, blob.Dim(), in.Stride());
 
       }
 
-      virtual void DoFixTanh(CuMatrixBase<BaseFloat> &blob, int n)
+      virtual void DoFixTanh(CuMatrixBase<BaseFloat> &blob,
+                             const CuMatrixBase<BaseFloat> &in,
+                             int n)
       {
         dim3 dimGrid, dimBlock;
         GetBlockSizesForSimpleMatrixOperation(blob.NumRows(), blob.NumCols(), &dimGrid, &dimBlock);
-        cuda_mapping(dimGrid, dimBlock, blob.Data(), tanh_xrange_, tanh_x_, tanh_y_, tanh_npoints_, -1, 1, tanh_amp_, blob.Dim());
+        cuda_mapping(dimGrid, dimBlock, blob.Data(), in.Data(), tanh_xrange_, tanh_x_, tanh_y_, tanh_npoints_, -1, 1, tanh_amp_, blob.Dim(), in.Stride());
       }
 
     private:

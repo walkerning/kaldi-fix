@@ -12,7 +12,7 @@ stage=0 # resume training with --stage=N
 fixconf="./fix.conf"
 phase="test"
 fixmodel=""
-#feature_trans=""
+feature_trans=""
 model=""
 
 # End of config.
@@ -23,7 +23,7 @@ model=""
 dir=${model:-exp/dnn4_pretrain-dbn_dnn}
 ali=${gmmdir}_ali
 #feature_transform=${feature_trans:-exp/dnn4_pretrain-dbn/final.feature_transform}
-feature_transform=exp/dnn4_pretrain-dbn/final.feature_transform
+feature_transform=${feature_trans:-exp/dnn4_pretrain-dbn/final.feature_transform}
 
 [ -z "$1" ] && nnet=$dir/final.nnet
 [ -z "$nnet" ] && nnet=$1

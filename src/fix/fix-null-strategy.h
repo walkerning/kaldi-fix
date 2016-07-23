@@ -16,8 +16,16 @@ namespace kaldi {
       virtual void DoFixParam(VectorBase<BaseFloat> &blob,
                               Component::ComponentType comp_type,
                               int n) {}
-      virtual void DoFixSigm(CuMatrixBase<BaseFloat> &blob, int n) {}
-      virtual void DoFixTanh(CuMatrixBase<BaseFloat> &blob, int n) {}
+      virtual void DoFixSigm(CuMatrixBase<BaseFloat> &blob,
+                             const CuMatrixBase<BaseFloat> &in,
+                             int n) {
+        blob.Sigmoid(in); // default behavior
+      }
+      virtual void DoFixTanh(CuMatrixBase<BaseFloat> &blob,
+                             const CuMatrixBase<BaseFloat> &in,
+                             int n) {
+        blob.Tanh(in); // default behavior
+      }
     };
   }
 }

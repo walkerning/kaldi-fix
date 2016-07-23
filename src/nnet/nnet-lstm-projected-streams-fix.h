@@ -452,13 +452,13 @@ namespace kaldi {
 
           // i, f sigmoid squashing
           //y_i.Sigmoid(y_i); // TODO
-	  fix_strategy_->FixSigm(y_i, fix_index_);
+	  fix_strategy_->FixSigm(y_i, y_i, fix_index_);
           //y_f.Sigmoid(y_f); // TODO
-	  fix_strategy_->FixSigm(y_f, fix_index_);
+	  fix_strategy_->FixSigm(y_f, y_f, fix_index_);
 
           // g tanh squashing
           //y_g.Tanh(y_g); // TODO
-	  fix_strategy_->FixTanh(y_g, fix_index_);
+	  fix_strategy_->FixTanh(y_g, y_g, fix_index_);
 
           // g -> c
           y_c.AddMatMatElements(1.0, y_g, y_i, 0.0);
@@ -472,15 +472,15 @@ namespace kaldi {
 
           // h tanh squashing
           //y_h.Tanh(y_c); //TODO
-	  fix_strategy_->FixTanh(y_h, fix_index_);
+	  fix_strategy_->FixTanh(y_h, y_c, fix_index_);
 
           // c(t) -> o(t) via peephole (non-recurrent) & o squashing
           y_o.AddMatDiagVec(1.0, y_c, kNoTrans, peephole_o_c_, 1.0);
           fix_strategy_->FixBlob(y_o, fix_index_);
 
           // o sigmoid squashing
-          //y_o.Sigmoid(y_o);
-	  fix_strategy_->FixSigm(y_o, fix_index_);
+          // y_o.Sigmoid(y_o);
+	  fix_strategy_->FixSigm(y_o, y_o, fix_index_);
 
           // h -> m via output gate
           y_m.AddMatMatElements(1.0, y_h, y_o, 0.0);
