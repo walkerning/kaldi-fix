@@ -46,7 +46,7 @@ fi
 echo "$fixopts"
 
 # Decode (reuse HCLG graph)
-steps/nnet/decode.sh --nj 1 --cmd "$decode_cmd" --acwt 0.2 --use-gpu "yes" --nnet $nnet \
+steps/nnet/decode.sh --nj 20 --cmd "$decode_cmd" --acwt 0.2 --use-gpu "yes" --nnet $nnet \
     $fixopts \
     $gmmdir/graph $data_fmllr/${phase} $dir/decode_${phase} >/dev/null|| exit 1;
 

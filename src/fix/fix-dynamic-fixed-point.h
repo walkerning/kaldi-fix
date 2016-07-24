@@ -292,17 +292,15 @@ namespace kaldi {
             if (token == "<NonLinearSigmoid>") {
               ReadBasicType(is, binary, &sigmoid_xrange_);  // x range
               ReadBasicType(is, binary, &sigmoid_npoints_); // number of points
-              int tmp_expo;
               // the exponent to multiply to convert to integers
-              ReadBasicType(is, binary, &tmp_expo); 
-              sigmoid_amp_ = 1 << tmp_expo;
+              ReadBasicType(is, binary, &sigmoid_expo_);
+              sigmoid_amp_ = 1 << sigmoid_expo_;
             } else if (token == "<NonLinearTanh>") {
               ReadBasicType(is, binary, &tanh_xrange_);  // x range
               ReadBasicType(is, binary, &tanh_npoints_); // number of points
-              int tmp_expo;
               // the exponent to multiply to convert to integers
-              ReadBasicType(is, binary, &tmp_expo); 
-              tanh_amp_ = 1 << tmp_expo;
+              ReadBasicType(is, binary, &tanh_expo_);
+              tanh_amp_ = 1 << tanh_expo_;
             } else {
               KALDI_ERR << "Unknown token: " << token;
             }
