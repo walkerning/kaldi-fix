@@ -217,20 +217,19 @@ class Sigmoid : public UpdatableComponent {
   ~Sigmoid()
   { }
 
-  friend class fix::FixStrategy;
-
   //UpdatableComponent* Copy() const { return new Sigmoid(*this); }
   ComponentType GetType() const { return kSigmoid; }
 
   void InitFix(std::tr1::shared_ptr<kaldi::fix::FixStrategy> conf, int n) {
     fix_strategy_ = conf;
+    fix_index_ = n+1;
   }
 
   void PropagateFnc(const CuMatrixBase<BaseFloat> &in,
                     CuMatrixBase<BaseFloat> *out) {
     // y = 1/(1+e^-x)
     // out->Sigmoid(in);
-    fix_strategy_->FixSigm( *out, in, 1);
+    fix_strategy_->FixSigm( *out, in, fix_index_);
   }
 
   void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in,
@@ -243,6 +242,7 @@ class Sigmoid : public UpdatableComponent {
 
  private:
   std::tr1::shared_ptr<fix::FixStrategy> fix_strategy_;
+  int32 fix_index_;
 };
 
 
