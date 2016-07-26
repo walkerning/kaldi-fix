@@ -21,7 +21,7 @@
 #include "nnet/nnet-component.h"
 #include "nnet/nnet-parallel-component.h"
 #include "nnet/nnet-multibasis-component.h"
-#include "nnet/nnet-activation.h"
+#include "nnet/nnet-activation-fix.h"
 #include "nnet/nnet-affine-transform.h"
 #include "nnet/nnet-various.h"
 #include "nnet/nnet-lstm-projected-streams-fix.h"
