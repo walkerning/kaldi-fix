@@ -30,11 +30,11 @@ int main(int argc, char *argv[]) {
     std::string output_filename;
     po.Register("output-filename", &output_filename,
         "name of output fixed nnet model");
-*/
+
     std::string fix_config;
     po.Register("fix-config", &fix_config,
         "path to the config file of fix strategy");
-
+*/
     std::string fix_config_line;
     po.Register("fix-config-line", &fix_config_line,
 		"pass fix-point configuration in text format");
@@ -51,7 +51,8 @@ int main(int argc, char *argv[]) {
       exit(1);
     }
     std::string model_filename = po.GetArg(1),
-        output_filename = po.GetArg(2);
+        output_filename = po.GetArg(2),
+        fix_config = po.GetArg(3);
 
     std::cout<<"args read"<<std::endl;
 
@@ -73,6 +74,7 @@ int main(int argc, char *argv[]) {
       // Read the fix-point config from cmd line
       nnet.InitFixLine(fix_config_line);
     } else {
+      std::cout<<"reading fix_config:"<<fix_config<<std::endl;
       // Read the fix-point config
       nnet.InitFix(fix_config);
     }
