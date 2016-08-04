@@ -9,13 +9,14 @@ namespace kaldi {
     public:
       virtual StrategyType GetType() const { return kNullStrategy; }
     protected:
-      virtual void ReadData(std::istream &is, bool binary) {}
+      virtual void ReadData(std::istream &is, bool binary, kaldi::nnet1::NnetFix& nnet_fix) {}
       virtual void WriteData(std::ostream &os, bool binary, bool config_only) const {}
       virtual void DoFixBlob(CuMatrixBase<BaseFloat> &blob, int n) {}
       virtual void DoFixBlob(MatrixBase<BaseFloat> &blob, int n) {}
       virtual void DoFixParam(VectorBase<BaseFloat> &blob,
                               Component::ComponentType comp_type,
-                              int n) {}
+                              int n,
+                              std::vector<int> inner_num_param) {}
       virtual void DoFixSigm(CuMatrixBase<BaseFloat> &blob,
                              const CuMatrixBase<BaseFloat> &in,
                              int n) {

@@ -42,22 +42,24 @@ namespace kaldi {
       static const char* TypeToMarker(StrategyType t);
       static StrategyType MarkerToType(const std::string &s);
      
-      static std::tr1::shared_ptr<FixStrategy> Read(const std::string &rxfilename) {
+      static std::tr1::shared_ptr<FixStrategy> Read(const std::string &rxfilename, kaldi::nnet1::NnetFix& nnet_fix) {
         bool binary;
         Input in(rxfilename, &binary);
-        std::tr1::shared_ptr<FixStrategy> strategy = Read(in.Stream(), binary);
+        KALDI_LOG << "ok before READ with 3 params";
+        std::tr1::shared_ptr<FixStrategy> strategy = Read(in.Stream(), binary, nnet_fix);
         in.Close(); 
+        KALDI_LOG << "ok after READ with 3 params";
         return strategy;
       }
 
-      static std::tr1::shared_ptr<FixStrategy> Init(const std::string &conf_line) {
+      static std::tr1::shared_ptr<FixStrategy> Init(const std::string &conf_line, kaldi::nnet1::NnetFix& nnet_fix) {
         bool binary = false;
         std::istringstream is(conf_line);
-        std::tr1::shared_ptr<FixStrategy> strategy = Read(is, binary);
+        std::tr1::shared_ptr<FixStrategy> strategy = Read(is, binary, nnet_fix);
         return strategy;
       }
 
-      static std::tr1::shared_ptr<FixStrategy> Read(std::istream &is, bool binary);
+      static std::tr1::shared_ptr<FixStrategy> Read(std::istream &is, bool binary, kaldi::nnet1::NnetFix& nnet_fix);
 
       /// Write the component to a stream,
       void Write(std::ostream &os, bool binary, bool config_only=false) const;
@@ -97,7 +99,7 @@ namespace kaldi {
 
     protected:
       // virtual functions to be implemented in derived classes
-      virtual void ReadData(std::istream &is, bool binary) = 0;
+      virtual void ReadData(std::istream &is, bool binary, kaldi::nnet1::NnetFix& nnet_fix) = 0;
 
       virtual void WriteData(std::ostream &os, bool binary, bool config_only=false) const = 0;
 
@@ -107,7 +109,8 @@ namespace kaldi {
 
       virtual void DoFixParam(VectorBase<BaseFloat> &blob,
                               kaldi::nnet1::Component::ComponentType comp_type,
-                              int n) = 0;
+                              int n,
+                              std::vector<int> inner_num_param) = 0;
 
       virtual void DoFixSigm(CuMatrixBase<BaseFloat> &blob,
                              const CuMatrixBase<BaseFloat> &in,

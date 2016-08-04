@@ -5,6 +5,7 @@
 #include <limits>
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 #include "fix/fix-strategy.h"
 #include "fix/fix-kernels-ansi.h"
@@ -14,6 +15,7 @@ namespace kaldi {
   namespace fix {
     using namespace kaldi::nnet1;
     typedef std::tr1::unordered_map<int, int> IndexIntMap;
+    typedef std::tr1::unordered_map<int, std::vector<int> > IndexVectorMap;
 
     class DynamicFixedPointStrategy : public FixStrategy {
 
@@ -96,24 +98,28 @@ namespace kaldi {
         return frag_pos;
       }
 
-      int ParamFragPos(int n, const VectorBase<BaseFloat>& blob, int bit_num) {
-        int frag_pos;
+      std::vector<int> ParamFragPos(int n, const VectorBase<BaseFloat>& blob, int bit_num, std::vector<int>& inner_num_param) {
+        std::vector<int> frag_pos;
         const BaseFloat* data = blob.Data();
-        int dim = blob.Dim();
 
-        IndexIntMap::const_iterator got;
+        IndexVectorMap::const_iterator got;
         if ((got = param_frag_pos_map_.find(n)) != param_frag_pos_map_.end()) {
           frag_pos = got->second;
         } else {
           // FIXME: Or use VectorBase::Max/Min instead?
-          /* BaseFloat max_num = blob.Max(); */
-          /* BaseFloat min_num = blob.Min(); */
+          // BaseFloat max_num = blob.Max();
+          // BaseFloat min_num = blob.Min();
+          
+          int offset = 0;
+          for (std::vector<int>::const_iterator ptr = inner_num_param.begin(); ptr != inner_num_param.end(); ++ptr) {
+            BaseFloat max_num = *std::max_element(data + offset, data + offset + *ptr);
+            BaseFloat min_num = *std::min_element(data + offset, data + offset + *ptr);
 
-          BaseFloat max_num = *std::max_element(data, data + dim);
-          BaseFloat min_num = *std::min_element(data, data + dim);
-
-          BaseFloat b_max = std::max(fabs(max_num), fabs(min_num));
-          param_frag_pos_map_[n] = frag_pos = bit_num - 1 - ceil(log(b_max) / log(2));
+            BaseFloat b_max = std::max(fabs(max_num), fabs(min_num));
+            frag_pos.push_back( bit_num - 1 - ceil(log(b_max) / log(2)) );
+            offset += *ptr;
+          }
+          param_frag_pos_map_[n] = frag_pos;
         }
         return frag_pos;
       }
@@ -137,6 +143,7 @@ namespace kaldi {
         }
        
         result = BaseFloat(int(result));
+
         if (frag_pos >= 0) {
           result = result / (1 << frag_pos);
         } else {
@@ -249,17 +256,19 @@ namespace kaldi {
         if (!binary) os << "\n";
       }
 
-      virtual void ReadData(std::istream &is, bool binary) {
+      virtual void ReadData(std::istream &is, bool binary, kaldi::nnet1::NnetFix& nnet_fix) {
         if ('<' == Peek(is, binary) && 'M' == PeekToken(is, binary)) {
           // Only read data when file is not null and first token is <Model>
           ExpectToken(is, binary, "<Model>");
-          innerReadData(is, binary);
+          KALDI_LOG << "ok before innerreaddata";
+          innerReadData(is, binary, nnet_fix);
+          KALDI_LOG << "ok after innerreaddata";
         } else {
           ReadConfigData(is, binary);
         }
       }
 
-      void innerReadData(std::istream &is, bool binary) {
+      void innerReadData(std::istream &is, bool binary, kaldi::nnet1::NnetFix& nnet_fix) {
         while ('<' == Peek(is, binary)) {
           std::string token;
           int index;
@@ -272,7 +281,18 @@ namespace kaldi {
               ReadBasicType(is, binary, &blob_frag_pos_map_[index]);
             } else if (token == "<FragPosParam>") {
               ReadBasicType(is, binary, &index);
-              ReadBasicType(is, binary, &param_frag_pos_map_[index]);
+              //ReadBasicType(is, binary, &param_frag_pos_map_[index]);
+              if (kaldi::nnet1::Component::TypeToMarker(nnet_fix.GetComponent(index).GetType()) == "<LstmProjectedStreams>") {
+                std::vector<int> temp(7,0); 
+                for (int i = 0; i < 7; ++i) {
+                  ReadBasicType(is, binary, &temp[i]);
+                }
+                param_frag_pos_map_[index] = temp;
+              } else {
+                std::vector<int> temp(1,0);
+                ReadBasicType(is, binary, &temp[0]);
+                param_frag_pos_map_[index] = temp;
+              }
             } else {
               KALDI_ERR << "Unknown token: " << token;
             }
@@ -323,10 +343,12 @@ namespace kaldi {
           WriteBasicType(os, binary, item->second);
         }
 
-        for( IndexIntMap::const_iterator item = param_frag_pos_map_.begin(); item != param_frag_pos_map_.end(); ++item ) { 
+        for( IndexVectorMap::const_iterator item = param_frag_pos_map_.begin(); item != param_frag_pos_map_.end(); ++item ) { 
           WriteToken(os, binary, "<FragPosParam>");
           WriteBasicType(os, binary, item->first);
-          WriteBasicType(os, binary, item->second);
+          for ( std::vector<int>::const_iterator order = (item->second).begin(); order != (item->second).end(); ++order) {
+            WriteBasicType(os, binary, *order);
+          }
         }
         for( IndexIntMap::const_iterator item = blob_frag_pos_map_.begin(); item != blob_frag_pos_map_.end(); ++item ) { 
           WriteToken(os, binary, "<FragPosBlob>");
@@ -408,14 +430,18 @@ namespace kaldi {
 
       virtual void DoFixParam(VectorBase<BaseFloat> &blob,
                               Component::ComponentType comp_type,
-                              int n) {
+                              int n,
+                              std::vector<int> inner_num_param) {
         int bit_num = ParamBitNum(n, comp_type);
-        int frag_pos = ParamFragPos(n, blob, bit_num);
+        std::vector<int> frag_pos = ParamFragPos(n, blob, bit_num, inner_num_param);
 
         BaseFloat* data = blob.Data();
-        // float to fix
-        for (MatrixIndexT i = 0; i < blob.Dim(); i++) {
-          data[i] = Float2Fix(data[i], bit_num, frag_pos);
+        for (size_t j = 0; j < frag_pos.size(); ++j) {
+          // float to fix
+          for (MatrixIndexT i = 0; i < inner_num_param[j]; ++i) {
+            data[i] = Float2Fix(data[i], bit_num, frag_pos[j]);
+          }
+          data += inner_num_param[j];
         }
       }
 
@@ -514,7 +540,7 @@ namespace kaldi {
 
       IndexIntMap param_bit_num_map_;
       IndexIntMap blob_bit_num_map_;
-      IndexIntMap param_frag_pos_map_;
+      IndexVectorMap param_frag_pos_map_;
       IndexIntMap blob_frag_pos_map_;
       
       int default_param_bit_;

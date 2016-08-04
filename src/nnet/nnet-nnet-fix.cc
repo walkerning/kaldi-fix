@@ -36,8 +36,9 @@ void NnetFix::InitFix(std::string fix_config){
   if (fix_config == "") {
     fix_strategy_ = fix::FixStrategy::NewNullStrategy();
   } else {
-    fix_strategy_ = fix::FixStrategy::Read(fix_config);
+    fix_strategy_ = fix::FixStrategy::Read(fix_config, *this);
   }
+  KALDI_LOG << "ok after read config data";
   for (int32 i = 0; i < NumComponents(); i++) {
     // Backpropagate through 'Component',
     if (components_[i]->IsUpdatable()) {
@@ -47,7 +48,7 @@ void NnetFix::InitFix(std::string fix_config){
 }
 
 void NnetFix::InitFixLine(std::string fix_config_line){
-  fix_strategy_ = fix::FixStrategy::Init(fix_config_line);
+  fix_strategy_ = fix::FixStrategy::Init(fix_config_line, *this);
   for (int32 i = 0; i < NumComponents(); i++) {
     // Backpropagate through 'Component',
     if (components_[i]->IsUpdatable()) {

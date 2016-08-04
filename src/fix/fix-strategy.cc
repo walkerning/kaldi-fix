@@ -1,4 +1,4 @@
-#include <fix/fix-strategy.h>
+#include "fix/fix-strategy.h"
 #include "nnet/nnet-nnet-fix.h"
 #include "fix/fix-dynamic-fixed-point.h"
 #include "fix/fix-null-strategy.h"
@@ -38,7 +38,7 @@ namespace kaldi {
       return std::tr1::shared_ptr<FixStrategy> (new NullStrategy());
     }
 
-    std::tr1::shared_ptr<FixStrategy> FixStrategy::Read(std::istream &is, bool binary) {
+    std::tr1::shared_ptr<FixStrategy> FixStrategy::Read(std::istream &is, bool binary, kaldi::nnet1::NnetFix& nnet_fix) {
       std::string token;
      
       int first_char = Peek(is, binary);
@@ -46,11 +46,12 @@ namespace kaldi {
      
       ReadToken(is, binary, &token);
       std::tr1::shared_ptr<FixStrategy> ans = std::tr1::shared_ptr<FixStrategy>(NewStrategyOfType(MarkerToType(token)));
-      ans -> ReadData(is, binary);
+      KALDI_LOG << "ok before readdata";
+      ans -> ReadData(is, binary, nnet_fix);
       // ExpectToken(is, binary, "<!EndOfStrategy>");
-
+      KALDI_LOG << "ok after readdata";
       ans -> Initialize();
-
+      KALDI_LOG << "ok after initialize";
       return ans;
     }
 
@@ -102,7 +103,7 @@ namespace kaldi {
         if (nnet_fix.GetComponent(n).IsUpdatable()) {
           int32 num_params = dynamic_cast<kaldi::nnet1::UpdatableComponent&>(nnet_fix.GetComponent(n)).NumParams();
           SubVector<BaseFloat> vector_range(vector.Range(pos, num_params));
-          this->DoFixParam(vector_range, nnet_fix.GetComponent(n).GetType(), n);
+          this->DoFixParam(vector_range, nnet_fix.GetComponent(n).GetType(), n, dynamic_cast<kaldi::nnet1::UpdatableComponent&>(nnet_fix.GetComponent(n)).InnerNumParams());
           dynamic_cast<kaldi::nnet1::UpdatableComponent&>(nnet_fix.GetComponent(n)).SetParams(vector_range);
           pos += num_params;
         }

@@ -207,6 +207,18 @@ namespace kaldi {
                  w_r_m_.NumRows() * w_r_m_.NumCols() );
       }
 
+      std::vector<int> InnerNumParams() const {
+        std::vector<int> result;
+        result.push_back( w_gifo_x_.NumRows() * w_gifo_x_.NumCols() );
+        result.push_back( w_gifo_r_.NumRows() * w_gifo_r_.NumCols() );
+        result.push_back( bias_.Dim() );
+        result.push_back( peephole_i_c_.Dim() );
+        result.push_back( peephole_f_c_.Dim() );
+        result.push_back( peephole_o_c_.Dim() );
+        result.push_back( w_r_m_.NumRows() * w_r_m_.NumCols() );
+        return result;
+      }
+
       void GetGradient(VectorBase<BaseFloat>* gradient) const {
         KALDI_ASSERT(gradient->Dim() == NumParams());
         int32 offset, len;

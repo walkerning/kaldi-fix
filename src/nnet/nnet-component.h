@@ -25,6 +25,7 @@
 #include <iostream>
 #include <string>
 #include <tr1/memory>
+#include <vector>
 
 #include "base/kaldi-common.h"
 #include "matrix/matrix-lib.h"
@@ -231,6 +232,13 @@ class UpdatableComponent : public Component {
 
   /// Number of trainable parameters,
   virtual int32 NumParams() const = 0;
+
+  /// Number of paramaters of each matrix inside the component
+  virtual std::vector<int> InnerNumParams() const {
+    std::vector<int> result;
+    result.push_back( this->NumParams() );
+    return result;
+  }
 
   /// Get gradient reshaped as a vector,
   virtual void GetGradient(VectorBase<BaseFloat> *gradient) const = 0;
