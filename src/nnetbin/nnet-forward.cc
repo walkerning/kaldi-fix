@@ -108,11 +108,9 @@ int main(int argc, char *argv[]) {
       nnet.InitFixLine(fix_config_line);
     } else {
       // Read the fix-point config
-      KALDI_LOG << "ok before init fix";
       nnet.InitFix(fix_config);
     }
-    KALDI_LOG << "ok after init fix";
-
+    
     KALDI_LOG << "Using fix strategy : " << nnet.GetFixStrategyType();
     // optionally remove softmax,
     Component::ComponentType last_comp_type = nnet.GetLastComponent().GetType();
@@ -144,8 +142,7 @@ int main(int argc, char *argv[]) {
 
     // Apply Weight Fix
     nnet.ApplyWeightFix();
-    KALDI_LOG << "weight fix finished";
-
+    
     kaldi::int64 tot_t = 0;
 
     SequentialBaseFloatMatrixReader feature_reader(feature_rspecifier);
@@ -185,20 +182,17 @@ int main(int argc, char *argv[]) {
       feats = mat;
 
       // fwd-pass, feature transform,
-      KALDI_LOG << "ok before nnet_transf";
       nnet_transf.Feedforward(feats, &feats_transf);
       if (!KALDI_ISFINITE(feats_transf.Sum())) {  // check there's no nan/inf,
         KALDI_ERR << "NaN or inf found in transformed-features for " << utt;
       }
 
       // fwd-pass, nnet,
-      KALDI_LOG << "ok before nnet";
       nnet.Feedforward(feats_transf, &nnet_out);
       if (!KALDI_ISFINITE(nnet_out.Sum())) {  // check there's no nan/inf,
         KALDI_ERR << "NaN or inf found in nn-output for " << utt;
       }
-      KALDI_LOG << "ok after nnet";
-
+      
       // convert posteriors to log-posteriors,
       if (apply_log) {
         if (!(nnet_out.Min() >= 0.0 && nnet_out.Max() <= 1.0)) {

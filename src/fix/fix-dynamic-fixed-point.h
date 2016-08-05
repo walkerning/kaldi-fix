@@ -142,7 +142,7 @@ namespace kaldi {
           result = minnum;
         }
        
-        result = BaseFloat(int(result));
+        result = BaseFloat(int(result + 0.5));
 
         if (frag_pos >= 0) {
           result = result / (1 << frag_pos);
@@ -260,9 +260,7 @@ namespace kaldi {
         if ('<' == Peek(is, binary) && 'M' == PeekToken(is, binary)) {
           // Only read data when file is not null and first token is <Model>
           ExpectToken(is, binary, "<Model>");
-          KALDI_LOG << "ok before innerreaddata";
           innerReadData(is, binary, nnet_fix);
-          KALDI_LOG << "ok after innerreaddata";
         } else {
           ReadConfigData(is, binary);
         }
@@ -282,7 +280,7 @@ namespace kaldi {
             } else if (token == "<FragPosParam>") {
               ReadBasicType(is, binary, &index);
               //ReadBasicType(is, binary, &param_frag_pos_map_[index]);
-              if (kaldi::nnet1::Component::TypeToMarker(nnet_fix.GetComponent(index).GetType()) == "<LstmProjectedStreams>") {
+              if (nnet_fix.GetComponent(index).GetType() == kaldi::nnet1::Component::MarkerToType("<LstmProjectedStreams>")) {
                 std::vector<int> temp(7,0); 
                 for (int i = 0; i < 7; ++i) {
                   ReadBasicType(is, binary, &temp[i]);

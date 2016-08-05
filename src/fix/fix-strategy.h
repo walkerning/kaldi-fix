@@ -45,10 +45,8 @@ namespace kaldi {
       static std::tr1::shared_ptr<FixStrategy> Read(const std::string &rxfilename, kaldi::nnet1::NnetFix& nnet_fix) {
         bool binary;
         Input in(rxfilename, &binary);
-        KALDI_LOG << "ok before READ with 3 params";
         std::tr1::shared_ptr<FixStrategy> strategy = Read(in.Stream(), binary, nnet_fix);
         in.Close(); 
-        KALDI_LOG << "ok after READ with 3 params";
         return strategy;
       }
 

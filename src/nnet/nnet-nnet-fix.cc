@@ -38,7 +38,6 @@ void NnetFix::InitFix(std::string fix_config){
   } else {
     fix_strategy_ = fix::FixStrategy::Read(fix_config, *this);
   }
-  KALDI_LOG << "ok after read config data";
   for (int32 i = 0; i < NumComponents(); i++) {
     // Backpropagate through 'Component',
     if (components_[i]->IsUpdatable()) {
