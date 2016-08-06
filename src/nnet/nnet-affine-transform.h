@@ -121,6 +121,13 @@ class AffineTransform : public UpdatableComponent {
     return linearity_.NumRows()*linearity_.NumCols() + bias_.Dim();
   }
 
+  std::vector<int> InnerNumParams() const {
+    std::vector<int> result;
+    result.push_back( linearity_.NumRows() * linearity_.NumCols() );
+    result.push_back( bias_.Dim() );
+    return result;
+  }
+
   void GetGradient(VectorBase<BaseFloat>* gradient) const {
     KALDI_ASSERT(gradient->Dim() == NumParams());
     int32 linearity_num_elem = linearity_.NumRows() * linearity_.NumCols();

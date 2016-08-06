@@ -142,7 +142,7 @@ namespace kaldi {
           result = minnum;
         }
        
-        result = BaseFloat(int(result + 0.5));
+        result = BaseFloat(int(result));
 
         if (frag_pos >= 0) {
           result = result / (1 << frag_pos);
@@ -285,6 +285,11 @@ namespace kaldi {
                 for (int i = 0; i < 7; ++i) {
                   ReadBasicType(is, binary, &temp[i]);
                 }
+                param_frag_pos_map_[index] = temp;
+              } else if (nnet_fix.GetComponent(index).GetType() == kaldi::nnet1::Component::MarkerToType("<AffineTransform>")) {
+                std::vector<int> temp(2,0);
+                ReadBasicType(is, binary, &temp[0]);
+                ReadBasicType(is, binary, &temp[1]);
                 param_frag_pos_map_[index] = temp;
               } else {
                 std::vector<int> temp(1,0);
