@@ -31,10 +31,10 @@ namespace kaldi {
 
       ~DynamicFixedPointStrategy() {
         if (is_table_made) {
-          CU_SAFE_CALL(cudaFree(sigmoid_x_));
-          CU_SAFE_CALL(cudaFree(sigmoid_y_));
-          CU_SAFE_CALL(cudaFree(tanh_x_));
-          CU_SAFE_CALL(cudaFree(tanh_y_));
+          CuDevice::Instantiate().Free(this->sigmoid_x_);
+          CuDevice::Instantiate().Free(this->sigmoid_y_);
+          CuDevice::Instantiate().Free(this->tanh_x_);
+          CuDevice::Instantiate().Free(this->tanh_y_);
         }
       }
 
