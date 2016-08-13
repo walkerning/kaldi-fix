@@ -51,33 +51,41 @@ class SparseWriter(object):
     
     def GenWeightByte(self, weight, rowindex, fixparam, bitlen):
         # generate bytes for target weight & rowindex
-        return (bs.BitArray(int = FixFloat2Fix(weight, fixparam.fragpos), length = fixparam.bitnum) + \
-        bs.BitArray(uint = rowindex, length = bitlen - fixparam.bitnum)).bytes
-
+        # return (bs.BitArray(int = FixFloat2Fix(weight, fixparam.fragpos), length = fixparam.bitnum) + \
+        # bs.BitArray(uint = rowindex, length = bitlen - fixparam.bitnum)).bytes
+        return (bs.BitArray(uint = rowindex, length = bitlen - fixparam.bitnum) + \
+        bs.BitArray(int = FixFloat2Fix(weight, fixparam.fragpos), length = fixparam.bitnum)).bytes
     
+
     def EieCol(self, col, colptr, fixparam, bitlen):
         # do single column EIE
         # return weight value and row index (in bytes)
         # and append new colptr
         maxrow = 1 << (bitlen - fixparam.bitnum)
-        num_weights = 0
+        num_nz = sum(col != 0)
+        # num_weights = 0
         zero_cnt = 0
+        nz_cnt = 0
         result_list = ''
         for i in col:
+            if nz_cnt == num_nz :
+                break
             if i == 0 and zero_cnt < maxrow - 1:
                 zero_cnt += 1
             else:
                 result_list += self.GenWeightByte(i, zero_cnt, fixparam, bitlen)
                 zero_cnt = 0
+                if i != 0 :
+                  nz_cnt += 1  
+                
+        # num_weights = len(result_list)
 
-        num_weights = len(result_list)
-
-        colptr[0] += len(result_list)
+        colptr[0] += len(result_list) / 2
         return result_list, bs.BitArray(int = colptr[0], length = bitlen).bytes
 
 
     def EieMat(self, mat, fixparam, bitlen):
-        #do single matrix EIE
+        # do single matrix EIE
         assert bitlen % 8 == 0, 'bit length is not whole byte'
         colptr = [0]
         # col_result = [EieCol(col, colptr, bitlen) for col in mat.transpose()]
@@ -114,7 +122,7 @@ class SparseWriter(object):
 
 
     def ReOrderSingleMat(self, mat):
-        stride = 16
+        stride = 2
         assert len(mat) == self.numPE
 
         # find the max length
@@ -123,6 +131,10 @@ class SparseWriter(object):
             maxlen += stride - (maxlen % stride)
 
         for submatindex in range(len(mat)):
+
+            l = len(mat[submatindex])/2
+            print submatindex,l
+
             assert type(mat[submatindex]) is str
             # add zeros to the end
             mat[submatindex] += '\0' * (maxlen - len(mat[submatindex]))
@@ -140,6 +152,10 @@ class SparseWriter(object):
         assert len(mat) == self.numPE
         stride = 2
         result = ''
+
+        #for i in range(self.numPE) :
+        #    print i,uint8(mat[i][-2]),uint8(mat[i][-1])
+
         for i in range(len(mat[0]) / stride):
             for j in range(self.numPE):
                 result += mat[j][i * stride:(i + 1) * stride]
@@ -209,10 +225,10 @@ if __name__=='__main__':
     
     # weight_fixparams = [FixParam(12,9)] * 8 + [FixParam(12,7)]
     # bias_diag_fixparams = [FixParam(16,13)] * 7
-    weight_fixparams = [FixParam(12,9)] * 9
-    bias_diag_fixparams = [FixParam(12,9)] * 7
+    weight_fixparams = [FixParam(12,6)] * 9
+    bias_diag_fixparams = [FixParam(16,9)] * 7
 
     fixparams = [[weight_fixparams, bias_diag_fixparams]] * 2
-    net = Nnet('~/kaldi/testnet/sogou_finetune_fixed.nnet')
+    net = Nnet('/home/xiongzheng/sogou_finetune_lstmdiff.nnet')
     sparse_writer = SparseWriter(net, fixparam = fixparams)
-    sparse_writer.WriteNet('/home/woinck/kaldi/swrite/sogou-finetune/sogou_finetune_fixed_compress_newparam')
+    sparse_writer.WriteNet('/home/xiongzheng/testnet/sogou_finetune_CSC')
