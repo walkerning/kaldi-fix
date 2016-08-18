@@ -40,31 +40,43 @@ namespace kaldi {
 
       StrategyType GetType() const { return kDynamicFixedPoint; }
 
-      static const int DEFAULT_PARAM_BIT_NUM = 8;
-      static const int DEFAULT_BLOB_BIT_NUM = 8;
+      static const int DEFAULT_PARAM_BIT_NUM = 16;
+      static const int DEFAULT_BLOB_BIT_NUM = 16;
 
-      int ParamBitNum(int n, Component::ComponentType _type) {
-        int bit_num = default_param_bit_;
-        IndexIntMap::const_iterator got;
-        IndexIntMap::const_iterator got_index;
-        IndexIntMap::const_iterator got_type;
+      std::vector<int> ParamBitNum(int n, Component::ComponentType _type) {
+        IndexVectorMap::const_iterator got;
+        // IndexIntMap::const_iterator got_index;
+        // IndexIntMap::const_iterator got_type;
         if ((got = param_bit_num_map_.find(n)) != param_bit_num_map_.end()) {
           return got->second;
         }
+        /*
         if ((got_index = param_index_map_.find(n)) != param_index_map_.end()) {
           bit_num = got_index->second;
         }
         if ((got_type = param_type_map_.find(static_cast<int> (_type))) != param_type_map_.end()) {
           bit_num = got_type->second;
         }
-        param_bit_num_map_[n] = bit_num;
+        */
+        std::vector<int> bit_num;
+        if (_type == kaldi::nnet1::Component::MarkerToType("<LstmProjectedStreams>")) {
+          int default_bitnum[7] = {12,12,16,16,16,16,12};
+          for (int i = 0; i < 7; ++i) {
+            bit_num.push_back(default_bitnum[i]);
+          }
+        } else if (_type == kaldi::nnet1::Component::MarkerToType("<AffineTransform>")) {
+          bit_num.push_back(12);
+          bit_num.push_back(16);
+        } else {
+          bit_num.push_back(16);
+        }
         return bit_num;
       }
 
       int BlobBitNum(int n) {
         int bit_num = default_blob_bit_;
         IndexIntMap::const_iterator got;
-        if ((got = blob_bit_num_map_.find(n)) != param_bit_num_map_.end()) {
+        if ((got = blob_bit_num_map_.find(n)) != blob_bit_num_map_.end()) {
           return got->second;
         }
         if ((got = blob_index_map_.find(n)) != blob_index_map_.end()) {
@@ -98,7 +110,7 @@ namespace kaldi {
         return frag_pos;
       }
 
-      std::vector<int> ParamFragPos(int n, const VectorBase<BaseFloat>& blob, int bit_num, std::vector<int>& inner_num_param) {
+      std::vector<int> ParamFragPos(int n, const VectorBase<BaseFloat>& blob, std::vector<int>& bit_num, std::vector<int>& inner_num_param) {
         std::vector<int> frag_pos;
         const BaseFloat* data = blob.Data();
 
@@ -106,18 +118,13 @@ namespace kaldi {
         if ((got = param_frag_pos_map_.find(n)) != param_frag_pos_map_.end()) {
           frag_pos = got->second;
         } else {
-          // FIXME: Or use VectorBase::Max/Min instead?
-          // BaseFloat max_num = blob.Max();
-          // BaseFloat min_num = blob.Min();
-          
           int offset = 0;
-          for (std::vector<int>::const_iterator ptr = inner_num_param.begin(); ptr != inner_num_param.end(); ++ptr) {
-            BaseFloat max_num = *std::max_element(data + offset, data + offset + *ptr);
-            BaseFloat min_num = *std::min_element(data + offset, data + offset + *ptr);
-
+          for (size_t i = 0; i < inner_num_param.size(); ++i) {
+            BaseFloat max_num = *std::max_element(data + offset, data + offset + inner_num_param[i]);
+            BaseFloat min_num = *std::min_element(data + offset, data + offset + inner_num_param[i]);
             BaseFloat b_max = std::max(fabs(max_num), fabs(min_num));
-            frag_pos.push_back( bit_num - 1 - ceil(log(b_max) / log(2)) );
-            offset += *ptr;
+            frag_pos.push_back( bit_num[i] - 1 - ceil(log(b_max) / log(2)) );
+            offset += inner_num_param[i];
           }
           param_frag_pos_map_[n] = frag_pos;
         }
@@ -279,7 +286,7 @@ namespace kaldi {
               ReadBasicType(is, binary, &blob_frag_pos_map_[index]);
             } else if (token == "<FragPosParam>") {
               ReadBasicType(is, binary, &index);
-              //ReadBasicType(is, binary, &param_frag_pos_map_[index]);
+              // ReadBasicType(is, binary, &param_frag_pos_map_[index]);
               if (nnet_fix.GetComponent(index).GetType() == kaldi::nnet1::Component::MarkerToType("<LstmProjectedStreams>")) {
                 std::vector<int> temp(7,0); 
                 for (int i = 0; i < 7; ++i) {
@@ -306,7 +313,23 @@ namespace kaldi {
               ReadBasicType(is, binary, &blob_bit_num_map_[index]);
             } else if (token == "<BitNumParam>") {
               ReadBasicType(is, binary, &index);
-              ReadBasicType(is, binary, &param_bit_num_map_[index]);
+              // ReadBasicType(is, binary, &param_bit_num_map_[index]);
+              if (nnet_fix.GetComponent(index).GetType() == kaldi::nnet1::Component::MarkerToType("<LstmProjectedStreams>")) {
+                std::vector<int> temp(7,0); 
+                for (int i = 0; i < 7; ++i) {
+                  ReadBasicType(is, binary, &temp[i]);
+                }
+                param_frag_pos_map_[index] = temp;
+              } else if (nnet_fix.GetComponent(index).GetType() == kaldi::nnet1::Component::MarkerToType("<AffineTransform>")) {
+                std::vector<int> temp(2,0);
+                ReadBasicType(is, binary, &temp[0]);
+                ReadBasicType(is, binary, &temp[1]);
+                param_frag_pos_map_[index] = temp;
+              } else {
+                std::vector<int> temp(1,0);
+                ReadBasicType(is, binary, &temp[0]);
+                param_frag_pos_map_[index] = temp;
+              }
             } else {
               KALDI_ERR << "Unknown token: " << token;
             }
@@ -335,10 +358,12 @@ namespace kaldi {
       }
 
       void innerWriteData(std::ostream &os, bool binary) const {
-        for( IndexIntMap::const_iterator item = param_bit_num_map_.begin(); item != param_bit_num_map_.end(); ++item ) { 
+        for( IndexVectorMap::const_iterator item = param_bit_num_map_.begin(); item != param_bit_num_map_.end(); ++item ) { 
           WriteToken(os, binary, "<BitNumParam>");
           WriteBasicType(os, binary, item->first);
-          WriteBasicType(os, binary, item->second);
+          for ( std::vector<int>::const_iterator order = (item->second).begin(); order != (item->second).end(); ++order) {
+            WriteBasicType(os, binary, *order);
+          }
         }
         for( IndexIntMap::const_iterator item = blob_bit_num_map_.begin(); item != blob_bit_num_map_.end(); ++item ) { 
           WriteToken(os, binary, "<BitNumBlob>");
@@ -435,14 +460,14 @@ namespace kaldi {
                               Component::ComponentType comp_type,
                               int n,
                               std::vector<int> inner_num_param) {
-        int bit_num = ParamBitNum(n, comp_type);
+        std::vector<int> bit_num = ParamBitNum(n, comp_type);
         std::vector<int> frag_pos = ParamFragPos(n, blob, bit_num, inner_num_param);
 
         BaseFloat* data = blob.Data();
         for (size_t j = 0; j < frag_pos.size(); ++j) {
           // float to fix
           for (MatrixIndexT i = 0; i < inner_num_param[j]; ++i) {
-            data[i] = Float2Fix(data[i], bit_num, frag_pos[j]);
+            data[i] = Float2Fix(data[i], bit_num[j], frag_pos[j]);
           }
           data += inner_num_param[j];
         }
@@ -530,9 +555,13 @@ namespace kaldi {
                              const CuMatrixBase<BaseFloat> &in,
                              int n)
       {
-        dim3 dimGrid, dimBlock;
-        GetBlockSizesForSimpleMatrixOperation(blob.NumRows(), blob.NumCols(), &dimGrid, &dimBlock);
-        cuda_mapping(dimGrid, dimBlock, blob.Data(), in.Data(), tanh_xrange_, tanh_x_, tanh_y_, tanh_npoints_, -1, 1, tanh_amp_, blob.Dim(), in.Stride());
+        std::cout<<"ok before if"<<std::endl;
+        if (CuDevice::Instantiate().Enabled()) {
+          dim3 dimGrid, dimBlock;
+          GetBlockSizesForSimpleMatrixOperation(blob.NumRows(), blob.NumCols(), &dimGrid, &dimBlock);
+          std::cout<<"ok before mapping"<<std::endl;
+          cuda_mapping(dimGrid, dimBlock, blob.Data(), in.Data(), tanh_xrange_, tanh_x_, tanh_y_, tanh_npoints_, -1, 1, tanh_amp_, blob.Dim(), in.Stride());
+        }
       }
 
     private:
@@ -541,7 +570,7 @@ namespace kaldi {
 
       IndexIntMap blob_index_map_;
 
-      IndexIntMap param_bit_num_map_;
+      IndexVectorMap param_bit_num_map_;
       IndexIntMap blob_bit_num_map_;
       IndexVectorMap param_frag_pos_map_;
       IndexIntMap blob_frag_pos_map_;
