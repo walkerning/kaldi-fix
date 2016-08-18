@@ -555,13 +555,9 @@ namespace kaldi {
                              const CuMatrixBase<BaseFloat> &in,
                              int n)
       {
-        std::cout<<"ok before if"<<std::endl;
-        if (CuDevice::Instantiate().Enabled()) {
-          dim3 dimGrid, dimBlock;
-          GetBlockSizesForSimpleMatrixOperation(blob.NumRows(), blob.NumCols(), &dimGrid, &dimBlock);
-          std::cout<<"ok before mapping"<<std::endl;
-          cuda_mapping(dimGrid, dimBlock, blob.Data(), in.Data(), tanh_xrange_, tanh_x_, tanh_y_, tanh_npoints_, -1, 1, tanh_amp_, blob.Dim(), in.Stride());
-        }
+        dim3 dimGrid, dimBlock;
+        GetBlockSizesForSimpleMatrixOperation(blob.NumRows(), blob.NumCols(), &dimGrid, &dimBlock);
+        cuda_mapping(dimGrid, dimBlock, blob.Data(), in.Data(), tanh_xrange_, tanh_x_, tanh_y_, tanh_npoints_, -1, 1, tanh_amp_, blob.Dim(), in.Stride());
       }
 
     private:
