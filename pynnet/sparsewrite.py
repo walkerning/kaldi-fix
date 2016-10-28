@@ -2,8 +2,8 @@ import numpy as np
 import bitstring as bs
 from nnetrw import Nnet
 import pdb
+import sys
 
-# 
 
 # Convert fixed float to Fix integer
 def FixFloat2Fix(f, fragpos):
@@ -27,9 +27,18 @@ class SparseWriter(object):
     def RowBlock(self, data, piece):
         # Divide a matrix to submatrix.
         # #submatrix = self.numPE
-        assert data.shape[0] % (piece * self.numPE) == 0, 'Cannot extract w_gifo_x'
+        assert data.shape[0] % (piece * self.numPE) == 0, 'Cannot extract the matrix'
         stride = data.shape[0] / piece
-        return [[data[stride * i + j:stride * (i + 1) + j: self.numPE,:] for j in range(self.numPE)] for i in range(piece)]
+        return [[data[stride*i+j: stride*(i+1)+j: self.numPE, :] for j in range(self.numPE)] for i in range(piece)]
+
+
+    def OrderlyRowBlock(self, data, piece):
+        # Divide a matrix to submatrix.
+        # #submatrix = self.numPE
+        assert data.shape[0] % (piece * self.numPE) == 0, 'Cannot extract the matrix'
+        stride = data.shape[0] / piece
+        length = stride / self.numPE
+        return [[data[stride*i+length*j: stride*i+length*(j+1), :] for j in range(self.numPE)] for i in range(piece)]
 
     
     def Blocking(self, comp_index):
@@ -37,16 +46,22 @@ class SparseWriter(object):
         assert len(comp) == 7, '#matrix in Lstm Component dismatch'
 
         # w_gifo_x & w_gifo_r
-        (self.wgx, self.wix, self.wfx, self.wox) = self.RowBlock(comp[0].data, 4)
-        (self.wgr, self.wir, self.wfr, self.wor) = self.RowBlock(comp[1].data, 4)
-        # w_r_m does not need transpose!
-        self.wrm = self.RowBlock(comp[6].data, 1)[0]
-    
+        [self.wgx, self.wix, self.wfx, self.wox] = self.RowBlock(comp[0].data, 4)
+        [self.wgr, self.wir, self.wfr, self.wor] = self.RowBlock(comp[1].data, 4)
+        # w_r_m is reordered in the column direction and blocked in the row direction orderly
+        [wrm_temp] = self.RowBlock(np.transpose(comp[6].data), 1)
+        wrm_temp = np.array(wrm_temp)
+        wrm_temp = np.reshape(wrm_temp,(2048,1024))
+        wrm_temp = np.transpose(wrm_temp)
+        [self.wrm] = self.OrderlyRowBlock(wrm_temp, 1)
 
+    
+    '''
     def GenWeightBytes(self, weights, bitlen):
         # not used
         return ''.join([(bs.BitArray(int = FixFloat2Fix(weight, self.fixparam.fragpos), length = self.fixparam.bitnum) + \
         bs.BitArray(int = rowindex, length = bitlen - self.fixparam.bitnum)).bytes for weight, rowindex in weights])
+    '''
 
     
     def GenWeightByte(self, weight, rowindex, fixparam, bitlen):
@@ -81,21 +96,27 @@ class SparseWriter(object):
         # num_weights = len(result_list)
 
         colptr[0] += len(result_list) / 2
-        return result_list, bs.BitArray(int = colptr[0], length = bitlen).bytes
+        return result_list, bs.BitArray(uint = colptr[0], length = bitlen).bytes
 
 
     def EieMat(self, mat, fixparam, bitlen):
+        
         # do single matrix EIE
         assert bitlen % 8 == 0, 'bit length is not whole byte'
         colptr = [0]
         # col_result = [EieCol(col, colptr, bitlen) for col in mat.transpose()]
         weight_bytes, colptr_bytes = zip(*[self.EieCol(col, colptr, fixparam, bitlen) for col in mat.transpose()])
+        #print mat.shape, colptr
+        #print 'submat nonzero(before): ', mat[mat!=0].size
+        #print 'submat nonzero(after ): ', len(''.join(weight_bytes)) / 2
+        print mat[mat!=0].size, len(''.join(weight_bytes))/2
         return ''.join(weight_bytes), ''.join(colptr_bytes)
 
 
     def EieSubMat(self, matlist, fixparam, bitlen = 16):
         # do all submatrix EIE for one weight mat
         assert len(matlist) == self.numPE, '#submat not match, ' + str(len(matlist)) + ' != ' + str(self.numPE)
+        print 'submats: --------- '
         return [list(x) for x in zip(*[self.EieMat(mat, fixparam, bitlen) for mat in matlist])]
         # [['aaa','bbb'],['col1','col2']]
 
@@ -130,18 +151,23 @@ class SparseWriter(object):
         if maxlen % stride:
             maxlen += stride - (maxlen % stride)
 
+        sum = 0
         for submatindex in range(len(mat)):
 
             l = len(mat[submatindex])/2
-            print submatindex,l
+            sum += l
+            #print submatindex,l
 
             assert type(mat[submatindex]) is str
             # add zeros to the end
             mat[submatindex] += '\0' * (maxlen - len(mat[submatindex]))
+        print 'sum=',sum
         result = ''
         for i in range(len(mat[0]) / stride):
             for j in range(self.numPE):
                 result += mat[j][i * stride:(i + 1) * stride]
+        sum_align = len(result)
+        print 'sum_addzero=',sum_align
         return result
 
 
@@ -190,9 +216,21 @@ class SparseWriter(object):
         assert len(comp) == 7, '#matrix in Lstm Component dismatch'
         assert len(comp[2].data.shape) == 1 and len(comp[2].data) % 4 == 0 , 'bias dimension incorrect'
 
-        bias = [x for x in comp[2].data.reshape(4, len(comp[2].data) / 4)]
-        diag = [comp[x].data for x in range(3,6)] # i, f, o
-        other_order = [bias[1], diag[0], diag[1], bias[2], bias[0], bias[3], diag[2]]
+        # bias = [x for x in comp[2].data.reshape(4, len(comp[2].data) / 4)]
+        # diag = [comp[x].data for x in range(3,6)] # i, f, o
+        
+        bias = comp[2].data.reshape(len(comp[2].data), 1)
+        [self.Bc, self.Bi, self.Bf, self.Bo] = self.RowBlock(bias, 4)
+        
+        [self.Wic] = self.RowBlock(comp[3].data.reshape(len(comp[3].data),1),1)
+        [self.Wfc] = self.RowBlock(comp[4].data.reshape(len(comp[4].data),1),1)
+        [self.Woc] = self.RowBlock(comp[5].data.reshape(len(comp[5].data),1),1)
+
+        other_order = [self.Bi, self.Bf, self.Bc, self.Bo, self.Wic, self.Wfc, self.Woc]
+
+        for i in range(len(other_order)):
+            other_order[i] = np.array(other_order[i], order = 'F')
+
         result = ''.join([self.Mat2Bytes(other_order[i],self.fixparam[comp_index][1][i], 16) for i in range(len(other_order))])
         return result
 
@@ -206,9 +244,11 @@ class SparseWriter(object):
         self.Eie(self.fixparam[comp_index][0])
 
         # Reorder & write
+
         with open(filename + '_comp' + str(comp_index) + '_1.netb', 'wb') as fout:
             fout.write(self.ReOrder())
             fout.close()
+
 
         with open(filename + '_comp' + str(comp_index) + '_2.netb', 'wb') as fout:
             fout.write(self.reordered_colptr + self.OtherW(comp_index))
@@ -221,14 +261,21 @@ class SparseWriter(object):
                 self.WriteLstmComp(layer, filename)
 
 
+
+
 if __name__=='__main__':
     
-    # weight_fixparams = [FixParam(12,9)] * 8 + [FixParam(12,7)]
-    # bias_diag_fixparams = [FixParam(16,13)] * 7
-    weight_fixparams = [FixParam(12,6)] * 9
-    bias_diag_fixparams = [FixParam(16,9)] * 7
+    weight_fixparams_1 = [FixParam(12,6)] * 3 + [FixParam(12,12)] * 3 + [FixParam(12,6)] + [FixParam(12,12)] + [FixParam(12,12)]
+    weight_fixparams_2 = [FixParam(12,12)] * 3 + [FixParam(12,13)] * 3 + [FixParam(12,12)] + [FixParam(12,13)] + [FixParam(12,12)]
+    weight_fixparams_3 = [FixParam(12,12)] * 3 + [FixParam(12,12)] * 3 + [FixParam(12,12)] + [FixParam(12,12)] + [FixParam(12,11)]
+    bias_diag_fixparams_1 = [FixParam(16,10)] * 4 + [FixParam(16,15)] + [FixParam(16,14)] + [FixParam(16,14)]
+    bias_diag_fixparams_2 = [FixParam(16,10)] * 4 + [FixParam(16,15)] + [FixParam(16,15)] + [FixParam(16,15)]
+    bias_diag_fixparams_3 = [FixParam(16,10)] * 4 + [FixParam(16,14)] + [FixParam(16,14)] + [FixParam(16,13)]
+    fixparams = [[weight_fixparams_1, bias_diag_fixparams_1], [weight_fixparams_2, bias_diag_fixparams_2], [weight_fixparams_3, bias_diag_fixparams_3]]
 
-    fixparams = [[weight_fixparams, bias_diag_fixparams]] * 2
-    net = Nnet('/home/xiongzheng/sogou_finetune_lstmdiff.nnet')
+    # net = Nnet('pruned_balance_153_sparsity_0.15.nnet')
+    net = Nnet(sys.argv[1])
+
     sparse_writer = SparseWriter(net, fixparam = fixparams)
-    sparse_writer.WriteNet('/home/xiongzheng/testnet/sogou_finetune_CSC')
+    # sparse_writer.WriteNet('153_CSC')
+    sparse_writer.WriteNet(sys.argv[1])
