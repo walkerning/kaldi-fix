@@ -19,12 +19,12 @@
 // limitations under the License.
 
 
-
 #ifndef KALDI_NNET_NNET_LSTM_PROJECTED_STREAMS_H_
 #define KALDI_NNET_NNET_LSTM_PROJECTED_STREAMS_H_
 
 #include <string>
 #include <vector>
+#include <fstream>
 
 #include "nnet/nnet-component.h"
 #include "nnet/nnet-utils.h"
@@ -63,6 +63,45 @@ namespace kaldi {
 
       Component* Copy() const { return new LstmProjectedStreams(*this); }
       ComponentType GetType() const { return kLstmProjectedStreams; }
+
+      void SaveData(string &name, const CuMatrixBase<BaseFloat> &in) 
+      {
+        int numPE = 32;
+        //BaseFloat max = 0, min = 0;
+        std::ofstream outfile;
+        //outfile.open(("/home/xiongzheng/testnet/"+name+".dat").c_str(), std::ios::app|std::ofstream::binary);
+        outfile.open(("/home/xiongzheng/testnet/"+name+".dat").c_str(), std::ios::app);
+        if (name == "input" || name == "y_r") {
+          for (int i = 0; i < in.NumRows(); ++i) {
+            for (int j = 0; j < in.NumCols(); ++j) {
+              outfile << in(i, j) << " ";
+            }
+            outfile << std::endl << std::endl;
+          }
+        } else {
+          for (int row = 0; row < in.NumRows(); ++row) 
+          {
+          //max = in(row,0);
+          //min = in(row,0);
+            for (int offset = 0; offset < numPE; ++offset)
+            {
+              for (int block = 0; block < in.NumCols() / numPE; ++block) {
+              //float tempval = in(row,col);
+              //outfile.write( (char*)&tempval ,sizeof(float));	// write in binary mode for accuarcy
+                outfile << in(row,block * numPE + offset) << " ";
+              //if (in(row,col) > max)
+              //max = in(row,col);
+              //if (in(row,col) < min)
+              //min = in(row,col);
+              }
+            }
+          //outfile << std::endl;
+          //outfile << "max:" << max << "    " << "min:" << min;
+            outfile << std::endl <<std::endl;
+          }
+        }
+        outfile.close();
+      }
 
       void InitData(std::istream &is) {
         // define options,
@@ -384,9 +423,111 @@ namespace kaldi {
         }
       }
 
+      bool ChangeMaxMin(const CuMatrixBase<BaseFloat> &m, double &findTmpMax, double &findTmpMin)
+      {
+	  bool changed = false;
+	  double tmpMax = m.Max();
+	  double tmpMin = m.Min();
+	  if (tmpMax > findTmpMax)
+	  {
+	      findTmpMax = tmpMax;
+	      changed = true;
+	  }
+	  if (tmpMin < findTmpMin)
+	  {
+	      findTmpMin = tmpMin;
+	      changed = true;
+	  }
+	  return changed;
+      }
+
+
+
+
+
+
+
+
+
       void PropagateFnc(const CuMatrixBase<BaseFloat> &in,
                         CuMatrixBase<BaseFloat> *out) {
+
+	/*      
+	{
+		std::ofstream outf;
+        	outf.open("/home/lixin/testnet/test.dat", std::ios::app);
+		
+		outf << "fix_index: " << fix_index_ << std::endl;
+		outf << "input: " << in.NumRows() << " " << in.NumCols() << std::endl;
+		outf << "output: " << out->NumRows() << " " << out->NumCols() << std::endl;
+		outf << "ncell_: " << ncell_ << std::endl;
+		outf << "nrecur_: " << nrecur_ << std::endl;
+		outf << "nstream_: " << nstream_ << std::endl;
+		outf << "w_gifo_x: " << w_gifo_x_.NumRows() << " " << w_gifo_x_.NumCols() << std::endl;
+		outf << "w_gifo_r: " << w_gifo_r_.NumRows() << " " << w_gifo_r_.NumCols() << std::endl;
+		outf << "w_rm: " << w_r_m_.NumRows() << " " << w_r_m_.NumCols() << std::endl;
+		outf << std::endl;
+		
+		string name = "wcx";
+		CuSubMatrix<BaseFloat> wcx(w_gifo_x_.RowRange(0*ncell_, ncell_));
+		SaveData(name, wcx);
+		
+		name = "wix";
+		CuSubMatrix<BaseFloat> wix(w_gifo_x_.RowRange(1*ncell_, ncell_));
+		SaveData(name, wix);
+		
+		name = "wfx";
+		CuSubMatrix<BaseFloat> wfx(w_gifo_x_.RowRange(2*ncell_, ncell_));
+		SaveData(name, wfx);
+		
+		name = "wox";
+		CuSubMatrix<BaseFloat> wox(w_gifo_x_.RowRange(3*ncell_, ncell_));
+		SaveData(name, wox);
+		
+		name = "wcr";
+		CuSubMatrix<BaseFloat> wcr(w_gifo_r_.RowRange(0*ncell_, ncell_));
+		SaveData(name, wcr);
+		
+		name = "wir";
+		CuSubMatrix<BaseFloat> wir(w_gifo_r_.RowRange(1*ncell_, ncell_));
+		SaveData(name, wir);
+		
+		name = "wfr";
+		CuSubMatrix<BaseFloat> wfr(w_gifo_r_.RowRange(2*ncell_, ncell_));
+		SaveData(name, wfr);
+		
+		name = "wor";
+		CuSubMatrix<BaseFloat> wor(w_gifo_r_.RowRange(3*ncell_, ncell_));
+		SaveData(name, wor);
+		
+		name = "wrm";
+		SaveData(name, w_r_m_);
+		
+		outf.close();	  
+	}
+	*/
+	
+	
+	
+	
+	// for test
+	//	
+	std::ofstream outf;
+        outf.open("/home/yemingqing/testnet/InputMaxMin.dat", std::ios::app);
+	outf << in.Max() << " " << in.Min() << std::endl;
+	outf.close();
+	
+
+	// propagate begin
+	//
+	string name = "tmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmp";
         int DEBUG = 0;
+	double findTmpMax = 0;
+	double findTmpMin = 0;
+	double findSigmoidMax = 0;
+	double findSigmoidMin = 0;
+	double findTanhMax = 0;
+	double findTanhMin = 0;
 
         static bool do_stream_reset = false;
         if (nstream_ == 0) {
@@ -395,6 +536,7 @@ namespace kaldi {
           prev_nnet_state_.Resize(nstream_, 7*ncell_ + 1*nrecur_, kSetZero);
           KALDI_LOG << "Running nnet-forward with per-utterance LSTM-state reset";
         }
+
         if (do_stream_reset) prev_nnet_state_.SetZero();
         KALDI_ASSERT(nstream_ > 0);
 
@@ -402,7 +544,7 @@ namespace kaldi {
         int32 T = in.NumRows() / nstream_;
         int32 S = nstream_;
 
-        // 0:forward pass history, [1, T]:current sequence, T+1:dummy
+	// 0:forward pass history, [1, T]:current sequence, T+1:dummy
         propagate_buf_.Resize((T+2)*S, 7 * ncell_ + nrecur_, kSetZero);
         propagate_buf_.RowRange(0*S, S).CopyFromMat(prev_nnet_state_);
 
@@ -415,12 +557,37 @@ namespace kaldi {
         CuSubMatrix<BaseFloat> YH(propagate_buf_.ColRange(5*ncell_, ncell_));
         CuSubMatrix<BaseFloat> YM(propagate_buf_.ColRange(6*ncell_, ncell_));
         CuSubMatrix<BaseFloat> YR(propagate_buf_.ColRange(7*ncell_, nrecur_));
-
         CuSubMatrix<BaseFloat> YGIFO(propagate_buf_.ColRange(0, 4*ncell_));
+	
 
-        // x -> g, i, f, o, not recurrent, do it all in once
+        cout<< "fix_index_:" << fix_index_ << endl;
+	name = "input";
+	cout << "input: " << in.NumRows() << " " << in.NumCols() << endl;
+	SaveData(name, in);
+
+        /*
+	name = "wgx";
+	CuSubMatrix<BaseFloat> wgx(w_gifo_x_.RowRange(0*ncell_, ncell_));
+	cout << "wcx: " << wgx.NumRows() << " " << wgx.NumCols() << endl;
+	SaveData(name, wgx);
+        */
+
+	// x -> g, i, f, o, not recurrent, do it all in once
         YGIFO.RowRange(1*S, T*S).AddMatMat(1.0, in, kNoTrans, w_gifo_x_, kTrans, 0.0);
-        // fix_strategy_->FixBlob(YGFIO, fix_index_);
+	ChangeMaxMin(YGIFO.RowRange(1*S, T*S), findTmpMax, findTmpMin);
+	        
+	fix_strategy_->FixBlob(YGIFO, fix_index_);		// fix1
+        
+	// save inner result
+	
+	name = "Wgx_x";
+        SaveData(name,YG.RowRange(1*S,T*S));
+	name = "Wix_x";
+        SaveData(name,YI.RowRange(1*S,T*S));
+        name = "Wfx_x";
+        SaveData(name,YF.RowRange(1*S,T*S));
+        name = "Wox_x";
+        SaveData(name,YO.RowRange(1*S,T*S));
 
         //// LSTM forward dropout
         //// Google paper 2014: Recurrent Neural Network Regularization
@@ -435,7 +602,8 @@ namespace kaldi {
 
         // bias -> g, i, f, o
         YGIFO.RowRange(1*S, T*S).AddVecToRows(1.0, bias_);
-        fix_strategy_->FixBlob(YGIFO, fix_index_); // only addition, 可能会溢出, 还是需要fix吧. 如果太慢可以先不要前面那个?
+	ChangeMaxMin(YGIFO.RowRange(1*S, T*S), findTmpMax, findTmpMin);
+	fix_strategy_->FixBlob(YGIFO, fix_index_);		// fix2
 
         for (int t = 1; t <= T; t++) {
           // multistream buffers for current time-step
@@ -447,61 +615,161 @@ namespace kaldi {
           CuSubMatrix<BaseFloat> y_h(YH.RowRange(t*S, S));
           CuSubMatrix<BaseFloat> y_m(YM.RowRange(t*S, S));
           CuSubMatrix<BaseFloat> y_r(YR.RowRange(t*S, S));
-
           CuSubMatrix<BaseFloat> y_gifo(YGIFO.RowRange(t*S, S));
 
           // r(t-1) -> g, i, f, o
           y_gifo.AddMatMat(1.0, YR.RowRange((t-1)*S, S), kNoTrans, w_gifo_r_, kTrans,  1.0);
-          fix_strategy_->FixBlob(y_gifo, fix_index_);
+	  ChangeMaxMin(y_gifo, findTmpMax, findTmpMin);
+	  fix_strategy_->FixBlob(y_gifo, fix_index_);		// fix3
+          
+	  
+	  CuMatrix<BaseFloat> temp;
+          temp.Resize(1, 4 * ncell_, kSetZero);
+          temp.AddMatMat(1.0, YR.RowRange((t-1)*S, S), kNoTrans, w_gifo_r_, kTrans,  1.0);
+          fix_strategy_->FixBlob(temp, fix_index_);
+          // save inner results
+          name = "Wgr_y";
+          SaveData(name,temp.ColRange(0*ncell_, ncell_));
+          name = "Wir_y";
+          SaveData(name,temp.ColRange(1*ncell_, ncell_));
+          name = "Wfr_y";
+          SaveData(name,temp.ColRange(2*ncell_, ncell_));
+          name = "Wor_y";
+          SaveData(name,temp.ColRange(3*ncell_, ncell_));
+	  
 
           // c(t-1) -> i(t) via peephole
           y_i.AddMatDiagVec(1.0, YC.RowRange((t-1)*S, S), kNoTrans, peephole_i_c_, 1.0);
+	  
+	  // save inner results
+          temp.Resize(1, ncell_, kSetZero);
+          temp.AddMatDiagVec(1.0, YC.RowRange((t-1)*S, S), kNoTrans, peephole_i_c_, 1.0);
+          fix_strategy_->FixBlob(temp, fix_index_);
+          name = "Wic_c";
+          SaveData(name, temp);
+          
 
           // c(t-1) -> f(t) via peephole
           y_f.AddMatDiagVec(1.0, YC.RowRange((t-1)*S, S), kNoTrans, peephole_f_c_, 1.0);
+	  
+	  // save inner results
+          temp.Resize(1, ncell_, kSetZero);
+          temp.AddMatDiagVec(1.0, YC.RowRange((t-1)*S, S), kNoTrans, peephole_f_c_, 1.0);
+          fix_strategy_->FixBlob(temp, fix_index_);
+          name = "Wfc_c";
+          SaveData(name, temp);
+	  
+
           CuSubMatrix<BaseFloat> y_if(propagate_buf_.ColRange(1*ncell_, 2*ncell_).RowRange(t*S, S));
-          fix_strategy_->FixBlob(y_if, fix_index_);
+	  ChangeMaxMin(y_if, findTmpMax, findTmpMin);
+	  fix_strategy_->FixBlob(y_if, fix_index_);		// fix4
+	  
+          // save inner results
+          name = "g_before_tanh";
+          SaveData(name, y_g);
+	  name = "i_before_sigm";
+          SaveData(name, y_i);
+          name = "f_before_sigm";
+          SaveData(name, y_f);
+	  
 
           // i, f sigmoid squashing
-          //y_i.Sigmoid(y_i); // TODO
-	  fix_strategy_->FixSigm(y_i, y_i, fix_index_);
-          //y_f.Sigmoid(y_f); // TODO
-	  fix_strategy_->FixSigm(y_f, y_f, fix_index_);
+	  ChangeMaxMin(y_i, findSigmoidMax, findSigmoidMin);
+          // y_i.Sigmoid(y_i); // TODO
+	  fix_strategy_->FixSigm(y_i, y_i, fix_index_);		// fix5
+
+	  ChangeMaxMin(y_f, findSigmoidMax, findSigmoidMin);
+          // y_f.Sigmoid(y_f); // TODO
+	  fix_strategy_->FixSigm(y_f, y_f, fix_index_);		// fix6
 
           // g tanh squashing
-          //y_g.Tanh(y_g); // TODO
-	  fix_strategy_->FixTanh(y_g, y_g, fix_index_);
+	  ChangeMaxMin(y_g, findTanhMax, findTanhMin);
+          // y_g.Tanh(y_g); // TODO
+	  fix_strategy_->FixTanh(y_g, y_g, fix_index_);		// fix7
 
           // g -> c
           y_c.AddMatMatElements(1.0, y_g, y_i, 0.0);
+	  ChangeMaxMin(y_c, findTmpMax, findTmpMin);
+	  fix_strategy_->FixBlob(y_c, fix_index_);		// fix8
+          
+	  // save inner results
+          temp.Resize(1, ncell_, kSetZero);
+          temp.AddMatMatElements(1.0, y_g, y_i, 0.0);
+          fix_strategy_->FixBlob(temp, fix_index_);
+          name = "i_g";
+          SaveData(name, temp);
+	  
 
           // c(t-1) -> c(t) via forget-gate
           y_c.AddMatMatElements(1.0, YC.RowRange((t-1)*S, S), y_f, 1.0);
-      
           y_c.ApplyFloor(-50);   // optional clipping of cell activation
           y_c.ApplyCeiling(50);  // google paper Interspeech2014: LSTM for LVCSR
-          fix_strategy_->FixBlob(y_c, fix_index_);
+	  ChangeMaxMin(y_c, findTmpMax, findTmpMin);
+	  fix_strategy_->FixBlob(y_c, fix_index_);		// fix9
+          
+	  // save inner results
+          temp.Resize(1, ncell_, kSetZero);
+          temp.AddMatMatElements(1.0, YC.RowRange((t-1)*S, S), y_f, 1.0);
+          fix_strategy_->FixBlob(temp, fix_index_);
+          name = "f_c";
+          SaveData(name, temp);
+	  
 
           // h tanh squashing
-          //y_h.Tanh(y_c); //TODO
-	  fix_strategy_->FixTanh(y_h, y_c, fix_index_);
+	  ChangeMaxMin(y_c, findTanhMax, findTanhMin);
+          // y_h.Tanh(y_c); //TODO
+	  fix_strategy_->FixTanh(y_h, y_c, fix_index_);		// fix10
 
           // c(t) -> o(t) via peephole (non-recurrent) & o squashing
           y_o.AddMatDiagVec(1.0, y_c, kNoTrans, peephole_o_c_, 1.0);
-          fix_strategy_->FixBlob(y_o, fix_index_);
+	  ChangeMaxMin(y_o, findTmpMax, findTmpMin);
+	  fix_strategy_->FixBlob(y_o, fix_index_);		// fix11
+          
+	  // save inner results
+          temp.Resize(1, ncell_, kSetZero);
+          temp.AddMatDiagVec(1.0, y_c, kNoTrans, peephole_o_c_, 1.0);
+          fix_strategy_->FixBlob(temp, fix_index_);
+          name = "Woc_c";
+          SaveData(name, temp);
+          name = "o_before_sigm";
+          SaveData(name, y_o);
+	  
 
           // o sigmoid squashing
+	  ChangeMaxMin(y_o, findSigmoidMax, findSigmoidMin);
           // y_o.Sigmoid(y_o);
-	  fix_strategy_->FixSigm(y_o, y_o, fix_index_);
+	  fix_strategy_->FixSigm(y_o, y_o, fix_index_);		// fix12
 
           // h -> m via output gate
           y_m.AddMatMatElements(1.0, y_h, y_o, 0.0);
-          fix_strategy_->FixBlob(y_m, fix_index_);
+	  ChangeMaxMin(y_m, findTmpMax, findTmpMin);
+	  fix_strategy_->FixBlob(y_m, fix_index_);		// fix13
 
           // m -> r
           y_r.AddMatMat(1.0, y_m, kNoTrans, w_r_m_, kTrans, 0.0);
-          fix_strategy_->FixBlob(y_r, fix_index_);
-
+	  ChangeMaxMin(y_r, findTmpMax, findTmpMin);
+	  fix_strategy_->FixBlob(y_r, fix_index_);		// fix14
+          
+	  
+          name = "y_g";
+          SaveData(name,y_g);
+          name = "y_i";
+          SaveData(name,y_i);
+          name = "y_f";
+          SaveData(name,y_f);
+          name = "y_o";
+          SaveData(name,y_o);
+          name = "y_c";
+          SaveData(name,y_c);
+          name = "y_h";
+          SaveData(name,y_h);
+          name = "y_m";
+          SaveData(name,y_m);
+          name = "y_r";
+          SaveData(name,y_r);
+	  
+          // assert(0); 
+          
           if (DEBUG) {
             std::cerr << "forward-pass frame " << t << "\n";
             std::cerr << "activation of g: " << y_g;
@@ -520,7 +788,25 @@ namespace kaldi {
 
         // now the last frame state becomes previous network state for next batch
         prev_nnet_state_.CopyFromMat(propagate_buf_.RowRange(T*S, S));
+	
+        outf.open("/home/yemingqing/testnet/TmpMaxMin.dat", std::ios::app);
+	outf << findTmpMax << " " << findTmpMin << std::endl;
+	outf.close();
+
+        outf.open("/home/yemingqing/testnet/TmpSigmoid.dat", std::ios::app);
+	outf << findSigmoidMax << " " << findSigmoidMin << std::endl;
+	outf.close();
+
+        outf.open("/home/yemingqing/testnet/TmpTanh.dat", std::ios::app);
+	outf << findTanhMax << " " << findTanhMin << std::endl;
+	outf.close();
       }
+
+
+
+
+
+
 
       void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in,
                             const CuMatrixBase<BaseFloat> &out,
