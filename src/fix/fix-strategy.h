@@ -3,7 +3,9 @@
 
 #include <iostream>
 #include <tr1/memory>
+#include <tr1/unordered_map>
 #include <string>
+#include <vector>
 
 #include "base/kaldi-common.h"
 #include "nnet/nnet-component.h"
@@ -18,6 +20,9 @@ namespace kaldi {
 namespace kaldi {
   namespace fix {
    
+    typedef std::tr1::unordered_map<int, int> IndexIntMap;
+    typedef std::tr1::unordered_map<int, std::vector<int> > IndexVectorMap;
+
     class FixStrategy {
     public:
       /// Types of fix strategy
@@ -88,6 +93,10 @@ namespace kaldi {
       {
         this->DoFixTanh(blob, in, n);
       }
+
+      void SetupStrategy(std::ostream &os, bool binary, bool config_only) {
+	this->DoSetupStrategy(os, binary, config_only);
+      }
      
       virtual void Clear() {
         // A stub as default implementation. 
@@ -117,6 +126,8 @@ namespace kaldi {
       virtual void DoFixTanh(CuMatrixBase<BaseFloat> &blob,
                              const CuMatrixBase<BaseFloat> &in,
                              int n) = 0;
+
+      virtual void DoSetupStrategy(std::ostream &s, bool binary, bool config_only) = 0;
 
       virtual void Initialize() {}
 

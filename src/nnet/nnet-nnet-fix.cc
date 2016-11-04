@@ -27,6 +27,7 @@
 #include "nnet/nnet-lstm-projected-streams-fix.h"
 #include "nnet/nnet-blstm-projected-streams.h"
 #include "nnet/nnet-nnet-fix.h"
+#include <fstream>
 
 namespace kaldi {
 namespace nnet1 {
@@ -62,6 +63,12 @@ void NnetFix::ApplyWeightFix(){
 
 void NnetFix::ApplyBlobFix(CuMatrix<BaseFloat> in, int32 blob_index){
   fix_strategy_->FixBlob(in, blob_index);
+}
+
+void NnetFix::SetupFixStrategy(std::ostream &os) {
+  bool binary = false;
+  bool config_only = false;
+  this->fix_strategy_->SetupStrategy(os, binary, config_only);
 }
 
 /**
@@ -136,13 +143,17 @@ void NnetFix::Feedforward(const CuMatrixBase<BaseFloat> &in,
   KALDI_ASSERT(NULL != out);
   (*out) = in;  // works even with 0 components,
   CuMatrix<BaseFloat> tmp_in;
-  for (int32 i = 0; i < NumComponents(); i++) {
+  for (int32 i = 0; i < NumComponents(); i++) 
+  {
     out->Swap(&tmp_in);
     // Apply Fix Blob
-    ApplyBlobFix(tmp_in, i);
+    //if (components_[i]->GetType() != Component::kAffineTransform)
+    {
+    	ApplyBlobFix(tmp_in, i);
+    }
     components_[i]->Propagate(tmp_in, out);
   }
-  ApplyBlobFix(*out, NumComponents());
+  //ApplyBlobFix(*out, NumComponents());
 
 }
 

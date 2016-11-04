@@ -2,6 +2,7 @@
 #include "nnet/nnet-nnet-fix.h"
 #include "fix/fix-dynamic-fixed-point.h"
 #include "fix/fix-null-strategy.h"
+#include "nnet/nnet-component.h"
 
 namespace kaldi {
   namespace fix {
@@ -97,7 +98,8 @@ namespace kaldi {
       int32 pos = 0;
       for (int32 n = 0; n < nnet_fix.NumComponents(); n++) {
         // FIXME: 是不是updatable代表需要定点
-        if (nnet_fix.GetComponent(n).IsUpdatable()) {
+        if (nnet_fix.GetComponent(n).IsUpdatable() && (nnet_fix.GetComponent(n).GetType() != Component::kAffineTransform)) // AffineTransform component not fixed
+	{
           int32 num_params = dynamic_cast<kaldi::nnet1::UpdatableComponent&>(nnet_fix.GetComponent(n)).NumParams();
           SubVector<BaseFloat> vector_range(vector.Range(pos, num_params));
           this->DoFixParam(vector_range, nnet_fix.GetComponent(n).GetType(), n, dynamic_cast<kaldi::nnet1::UpdatableComponent&>(nnet_fix.GetComponent(n)).InnerNumParams());

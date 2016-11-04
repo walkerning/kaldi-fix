@@ -61,6 +61,7 @@ class NnetFix {
   std::string GetFixStrategyType() {
     return fix::FixStrategy::TypeToMarker(fix_strategy_->GetType());
   }
+  void SetupFixStrategy(std::ostream & os);
   friend class fix::FixStrategy;
 
  private:

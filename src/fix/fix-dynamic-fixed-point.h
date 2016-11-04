@@ -14,8 +14,6 @@
 namespace kaldi {
   namespace fix {
     using namespace kaldi::nnet1;
-    typedef std::tr1::unordered_map<int, int> IndexIntMap;
-    typedef std::tr1::unordered_map<int, std::vector<int> > IndexVectorMap;
 
     class DynamicFixedPointStrategy : public FixStrategy {
 
@@ -23,17 +21,18 @@ namespace kaldi {
     DynamicFixedPointStrategy()
       : default_param_bit_(DEFAULT_PARAM_BIT_NUM),
         default_blob_bit_(DEFAULT_BLOB_BIT_NUM),
-        is_table_made(0), sigmoid_xrange_(8),
-        tanh_xrange_(5), sigmoid_npoints_(1024),
-        tanh_npoints_(1024), sigmoid_expo_(15),
-        tanh_expo_(15), sigmoid_amp_(1<<15),
-        tanh_amp_(1<<15) {}
+        is_table_made(0), 
+        sigmoid_xrange_(8), tanh_xrange_(5), 
+        sigmoid_npoints_(2048), tanh_npoints_(2048), 
+        sigmoid_expo_(12), tanh_expo_(12), 
+        sigmoid_amp_(1<<12), tanh_amp_(1<<12), 
+        output_amp_(1<<15) {}
 
       ~DynamicFixedPointStrategy() {
         if (is_table_made) {
-          CuDevice::Instantiate().Free(this->sigmoid_x_);
+          //CuDevice::Instantiate().Free(this->sigmoid_x_);
           CuDevice::Instantiate().Free(this->sigmoid_y_);
-          CuDevice::Instantiate().Free(this->tanh_x_);
+          //CuDevice::Instantiate().Free(this->tanh_x_);
           CuDevice::Instantiate().Free(this->tanh_y_);
         }
       }
@@ -143,14 +142,22 @@ namespace kaldi {
           result = f / (1 << -frag_pos);
         }
 
+        /*
         if (result > maxnum) {
           result = maxnum;
         } else if (result < minnum) {
           result = minnum;
         }
+        */
        
-        result = BaseFloat(int(result));
+        int result_fix = int(result);
+        if (result_fix > maxnum) {
+          result_fix %= (maxnum + 1);
+        } else if (result_fix < minnum) {
+          result_fix %= minnum;
+        }
 
+        result = BaseFloat(result_fix);
         if (frag_pos >= 0) {
           result = result / (1 << frag_pos);
         } else {
@@ -273,6 +280,7 @@ namespace kaldi {
         }
       }
 
+      /*
       void innerReadData(std::istream &is, bool binary, kaldi::nnet1::NnetFix& nnet_fix) {
         while ('<' == Peek(is, binary)) {
           std::string token;
@@ -407,6 +415,359 @@ namespace kaldi {
           innerWriteData(os, binary);
         }
       }
+      */
+
+      void innerReadData(std::istream &is, bool binary, kaldi::nnet1::NnetFix& nnet_fix) {
+        while ('<' == Peek(is, binary)) {
+	  std::string token;
+          int index;
+
+          int first_char = PeekToken(is, binary);
+          switch (first_char) {
+          case 'F': ReadToken(is, binary, &token);
+            if (token == "<FragPosBlob>") {
+	      std::string subtoken;
+              ReadToken(is, binary, &subtoken);
+              if(subtoken == "<Layer>"){
+                ReadBasicType(is, binary, &index);
+              }else{
+                KALDI_ERR << "Unknown subtoken: " << subtoken;
+              }
+              ReadToken(is, binary, &subtoken);
+              if(subtoken == "<Max>"){
+                ReadBasicType(is, binary, &blob_frag_pos_map_[index]);
+              }else{
+                KALDI_ERR << "Unknown subtoken: " << subtoken;
+              }
+            } else if (token == "<FragPosParam>") {
+	      std::string subtoken;
+              ReadToken(is, binary, &subtoken);
+              if(subtoken == "<Component>"){
+                ReadBasicType(is, binary, &index);
+              }else{
+                KALDI_ERR << "Unknown subtoken: " << subtoken;
+              }
+              // ReadBasicType(is, binary, &param_frag_pos_map_[index]);
+              if (nnet_fix.GetComponent(index).GetType() == kaldi::nnet1::Component::MarkerToType("<LstmProjectedStreams>")) {
+		std::vector<int> temp(7,0);
+                ReadToken(is, binary, &subtoken);
+                if(subtoken == "<w_gifo_x_>"){
+                  ReadBasicType(is, binary, &temp[0]);
+                }else{
+                  KALDI_ERR << "Unknown subtoken: " << subtoken;
+                }
+                ReadToken(is, binary, &subtoken);
+                if(subtoken == "<w_gifo_r_>"){
+                  ReadBasicType(is, binary, &temp[1]);
+                }else{
+                  KALDI_ERR << "Unknown subtoken: " << subtoken;
+                }
+                ReadToken(is, binary, &subtoken);
+                if(subtoken == "<bias_>"){
+                  ReadBasicType(is, binary, &temp[2]);
+                }else{
+                  KALDI_ERR << "Unknown subtoken: " << subtoken;
+                }
+                ReadToken(is, binary, &subtoken);
+                if(subtoken == "<peephole_i_c_>"){
+                  ReadBasicType(is, binary, &temp[3]);
+                }else{
+                  KALDI_ERR << "Unknown subtoken: " << subtoken;
+                }
+                ReadToken(is, binary, &subtoken);
+                if(subtoken == "<peephole_f_c_>"){
+                  ReadBasicType(is, binary, &temp[4]);
+                }else{
+                  KALDI_ERR << "Unknown subtoken: " << subtoken;
+                }
+                ReadToken(is, binary, &subtoken);
+                if(subtoken == "<peephole_o_c_>"){
+                  ReadBasicType(is, binary, &temp[5]);
+                }else{
+                  KALDI_ERR << "Unknown subtoken: " << subtoken;
+                }
+                ReadToken(is, binary, &subtoken);
+                if(subtoken == "<w_r_m_>"){
+                  ReadBasicType(is, binary, &temp[6]);
+                }else{
+                  KALDI_ERR << "Unknown subtoken: " << subtoken;
+                }
+                param_frag_pos_map_[index] = temp;
+              } else{
+                KALDI_ERR << "Unknown type: " << nnet_fix.GetComponent(index).GetType();
+              }
+            } else {
+              KALDI_ERR << "Unknown token: " << token;
+            }
+            break;
+          case 'B': ReadToken(is, binary, &token);
+            if (token == "<BitNumBlob>") {
+	      std::string subtoken;
+              ReadToken(is, binary, &subtoken);
+              if(subtoken == "<Layer>"){
+                ReadBasicType(is, binary, &index);
+              }else{
+                KALDI_ERR << "Unknown subtoken: " << subtoken;
+              }
+              ReadToken(is, binary, &subtoken);
+              if(subtoken == "<Max>"){
+                ReadBasicType(is, binary, &blob_bit_num_map_[index]);
+              }else{
+                KALDI_ERR << "Unknown subtoken: " << subtoken;
+              }
+            } else if (token == "<BitNumParam>") {
+	      std::string subtoken;
+              ReadToken(is, binary, &subtoken);
+              if(subtoken == "<Component>"){
+                ReadBasicType(is, binary, &index);
+              }else{
+                KALDI_ERR << "Unknown subtoken: " << subtoken;
+              }
+              // ReadBasicType(is, binary, &param_bit_num_map_[index]);
+              if (nnet_fix.GetComponent(index).GetType() == kaldi::nnet1::Component::MarkerToType("<LstmProjectedStreams>")) {
+		std::vector<int> temp(7,0);
+                ReadToken(is, binary, &subtoken);
+                if(subtoken == "<w_gifo_x_>"){
+                  ReadBasicType(is, binary, &temp[0]);
+                }else{
+                  KALDI_ERR << "Unknown subtoken: " << subtoken;
+                }
+                ReadToken(is, binary, &subtoken);
+                if(subtoken == "<w_gifo_r_>"){
+                  ReadBasicType(is, binary, &temp[1]);
+                }else{
+                  KALDI_ERR << "Unknown subtoken: " << subtoken;
+                }
+                ReadToken(is, binary, &subtoken);
+                if(subtoken == "<bias_>"){
+                  ReadBasicType(is, binary, &temp[2]);
+                }else{
+                  KALDI_ERR << "Unknown subtoken: " << subtoken;
+                }
+                ReadToken(is, binary, &subtoken);
+                if(subtoken == "<peephole_i_c_>"){
+                  ReadBasicType(is, binary, &temp[3]);
+                }else{
+                  KALDI_ERR << "Unknown subtoken: " << subtoken;
+                }
+                ReadToken(is, binary, &subtoken);
+                if(subtoken == "<peephole_f_c_>"){
+                  ReadBasicType(is, binary, &temp[4]);
+                }else{
+                  KALDI_ERR << "Unknown subtoken: " << subtoken;
+                }
+                ReadToken(is, binary, &subtoken);
+                if(subtoken == "<peephole_o_c_>"){
+                  ReadBasicType(is, binary, &temp[5]);
+                }else{
+                  KALDI_ERR << "Unknown subtoken: " << subtoken;
+                }
+                ReadToken(is, binary, &subtoken);
+                if(subtoken == "<w_r_m_>"){
+                  ReadBasicType(is, binary, &temp[6]);
+                }else{
+                  KALDI_ERR << "Unknown subtoken: " << subtoken;
+                }
+                param_frag_pos_map_[index] = temp;
+              } else {
+                KALDI_ERR << "Unknown type: " << nnet_fix.GetComponent(index).GetType();
+              }
+            } else {
+              KALDI_ERR << "Unknown token: " << token;
+            }
+            break;
+          case 'N': ReadToken(is, binary, &token);
+            if (token == "<NonLinearSigmoid>") {
+	      std::string subtoken;
+              ReadToken(is, binary, &subtoken);
+              if (subtoken == "<x_range>"){
+                ReadBasicType(is, binary, &sigmoid_xrange_);  // x range
+              }else{
+                KALDI_ERR << "Unknown subtoken: " << subtoken;
+              }
+              ReadToken(is, binary, &subtoken);
+              if (subtoken == "<n_points>"){
+                ReadBasicType(is, binary, &sigmoid_npoints_); // number of points
+              }else{
+                KALDI_ERR << "Unknown subtoken: " << subtoken;
+              }
+              ReadToken(is, binary, &subtoken);
+              // the exponent to multiply to convert to integers
+              if (subtoken == "<Expo>"){
+                ReadBasicType(is, binary, &sigmoid_expo_);
+                sigmoid_amp_ = 1 << sigmoid_expo_;
+              }else{
+                KALDI_ERR << "Unknown subtoken: " << subtoken;
+              }
+            } else if (token == "<NonLinearTanh>") {
+	      std::string subtoken;
+              ReadToken(is, binary, &subtoken);
+              if (subtoken == "<x_range>"){
+                ReadBasicType(is, binary, &tanh_xrange_);  // x range
+              }else{
+                KALDI_ERR << "Unknown subtoken: " << subtoken;
+              }
+              ReadToken(is, binary, &subtoken);
+              if (subtoken == "<n_points>"){
+                ReadBasicType(is, binary, &tanh_npoints_); // number of points
+              }else{
+                KALDI_ERR << "Unknown subtoken: " << subtoken;
+              }
+              ReadToken(is, binary, &subtoken);
+              // the exponent to multiply to convert to integers
+              if (subtoken == "<Expo>"){
+                ReadBasicType(is, binary, &tanh_expo_);
+                tanh_amp_ = 1 << tanh_expo_;
+              }else{
+                KALDI_ERR << "Unknown subtoken: " << subtoken;
+              }
+            } else {
+              KALDI_ERR << "Unknown token: " << token;
+            }
+            break;
+          default: ReadToken(is, binary, &token);
+            KALDI_ERR << "Unknown token: " << token;
+          }
+        }
+      }
+
+      void innerWriteData(std::ostream &os, bool binary) const {
+        for( IndexVectorMap::const_iterator item = param_bit_num_map_.begin(); item != param_bit_num_map_.end(); ++item ) {
+          WriteToken(os, binary, "<BitNumParam>");
+          os << "\n";
+          WriteToken(os, binary, "<Component>");
+          os << " ";
+          WriteBasicType(os, binary, item->first);
+          int dis;
+          for ( std::vector<int>::const_iterator order = (item->second).begin(); order != (item->second).end(); ++order) {
+            dis = std::distance((item->second).begin(), order);
+            switch(dis){
+	    case 0 : WriteToken(os, binary, "<w_gifo_x_>");
+	      os << " ";
+	      break;
+	    case 1 : WriteToken(os, binary, "<w_gifo_r_>");
+	      os << " ";
+	      break;
+	    case 2 : WriteToken(os, binary, "<bias_>");
+	      os << " ";
+	      break;
+	    case 3 : WriteToken(os, binary, "<peephole_i_c_>");
+	      os << " ";
+	      break;
+	    case 4 : WriteToken(os, binary, "<peephole_f_c_>");
+	      os << " ";
+	      break;
+	    case 5 : WriteToken(os, binary, "<peephole_o_c_>");
+	      os << " ";
+	      break;
+	    case 6 : WriteToken(os, binary, "<w_r_m_>");
+	      os << " ";
+	      break;
+	    default : KALDI_ERR << "Overflow";
+	      break;
+            }
+            WriteBasicType(os, binary, *order);
+          }
+        }
+        for( IndexIntMap::const_iterator item = blob_bit_num_map_.begin(); item != blob_bit_num_map_.end(); ++item ) {
+          WriteToken(os, binary, "<BitNumBlob>");
+          os << "\n";
+          WriteToken(os, binary, "<Layer>");
+          os << " ";
+          WriteBasicType(os, binary, item->first);
+          WriteToken(os, binary, "<Max>");
+          os << " ";
+          WriteBasicType(os, binary, item->second);
+          os << "\n";
+        }
+
+        for( IndexVectorMap::const_iterator item = param_frag_pos_map_.begin(); item != param_frag_pos_map_.end(); ++item ) {
+          WriteToken(os, binary, "<FragPosParam>");
+          os << "\n";
+          WriteToken(os, binary, "<Component>");
+          os << " ";
+          WriteBasicType(os, binary, item->first);
+          int dis;
+          for ( std::vector<int>::const_iterator order = (item->second).begin(); order != (item->second).end(); ++order) {
+            dis = std::distance((item->second).begin(), order);
+            switch(dis){
+	    case 0 : WriteToken(os, binary, "<w_gifo_x_>");
+	      os << " ";
+	      break;
+	    case 1 : WriteToken(os, binary, "<w_gifo_r_>");
+	      os << " ";
+	      break;
+	    case 2 : WriteToken(os, binary, "<bias_>");
+	      os << " ";
+	      break;
+	    case 3 : WriteToken(os, binary, "<peephole_i_c_>");
+	      os << " ";
+	      break;
+	    case 4 : WriteToken(os, binary, "<peephole_f_c_>");
+	      os << " ";
+	      break;
+	    case 5 : WriteToken(os, binary, "<peephole_o_c_>");
+	      os << " ";
+	      break;
+	    case 6 : WriteToken(os, binary, "<w_r_m_>");
+	      os << " ";
+	      break;
+	    default : KALDI_ERR << "Overflow";
+	      break;
+            }
+            WriteBasicType(os, binary, *order);
+          }
+        }
+        for( IndexIntMap::const_iterator item = blob_frag_pos_map_.begin(); item != blob_frag_pos_map_.end(); ++item ) {
+          WriteToken(os, binary, "<FragPosBlob>");
+          os << "\n";
+          WriteToken(os, binary, "<Layer>");
+          os << " ";
+          WriteBasicType(os, binary, item->first);
+          WriteToken(os, binary, "<Max>");
+          os << " ";
+          WriteBasicType(os, binary, item->second);
+          os << "\n";
+        }
+
+        WriteToken(os, binary, "<NonLinearSigmoid>");
+        os << "\n";
+        WriteToken(os, binary, "<x_range>");
+        os << " ";
+        WriteBasicType(os, binary, sigmoid_xrange_);  // x range
+        WriteToken(os, binary, "<n_points>");
+        os << " ";
+        WriteBasicType(os, binary, sigmoid_npoints_); // number of points
+        // the exponent to multiply to convert to integers
+        WriteToken(os, binary, "<Expo>");
+        os << " ";
+        WriteBasicType(os, binary, sigmoid_expo_);
+        os << "\n";
+        WriteToken(os, binary, "<NonLinearTanh>");
+        os << "\n";
+        WriteToken(os, binary, "<x_range>");
+        os << " ";
+        WriteBasicType(os, binary, tanh_xrange_);  // x range
+        WriteToken(os, binary, "<n_points>");
+        os << " ";
+        WriteBasicType(os, binary, tanh_npoints_); // number of points
+        // the exponent to multiply to convert to integers
+        WriteToken(os, binary, "<Expo>");
+        os << " ";
+        WriteBasicType(os, binary, tanh_expo_);
+
+        if (!binary) os << "\n";
+      }
+
+      virtual void WriteData(std::ostream &os, bool binary, bool config_only) const {
+        if (!config_only) {
+          WriteToken(os, binary, "<Model>");
+          os << "\n";
+          innerWriteData(os, binary);
+        } else {
+          KALDI_ERR << "Cannot config_only!";
+        }
+      }
 
       virtual void DoFixBlob(CuMatrixBase<BaseFloat> &blob, int n) {
 #if HAVE_CUDA == 1
@@ -475,61 +836,65 @@ namespace kaldi {
 
       void MakeTable() {
         // Make sigmoid table
-        BaseFloat *sigmoid_x_array = new BaseFloat[sigmoid_npoints_ + 1];
-        int32 * sigmoid_x_bin = new int[sigmoid_npoints_ + 1];
-        BaseFloat *sigmoid_y_array = new BaseFloat[sigmoid_npoints_ + 1];
-        int32 *sigmoid_y_bin = new int[sigmoid_npoints_ + 1];
+        BaseFloat *sigmoid_x_array = new BaseFloat[sigmoid_npoints_];
+        // int32 * sigmoid_x_bin = new int[sigmoid_npoints_];
+        BaseFloat *sigmoid_y_array = new BaseFloat[sigmoid_npoints_];
+        int32 *sigmoid_y_bin = new int[sigmoid_npoints_];
 
-        for (int i = 0; i < sigmoid_npoints_ + 1; i++) {
+        for (int i = 0; i < sigmoid_npoints_; ++i) {
           sigmoid_x_array[i] = -1 + i * 2 / (static_cast<BaseFloat>(sigmoid_npoints_));
         }
-        for (int i = 0; i < sigmoid_npoints_ + 1; i++) {
+
+        /*
+        for (int i = 0; i < sigmoid_npoints_; ++i) {
           sigmoid_x_bin[i] = (int)((sigmoid_x_array[i] + 1) * sigmoid_amp_ + 0.5);
         }
-        for (int i = 0; i < sigmoid_npoints_ + 1; i++) {
+        */
+
+        for (int i = 0; i < sigmoid_npoints_; ++i) {
           sigmoid_y_array[i] = 1 / (1 + exp(-sigmoid_x_array[i] * sigmoid_xrange_));
         }
-        for (int i = 0; i < sigmoid_npoints_ + 1; i++) {
-          sigmoid_y_bin[i] = (int)(sigmoid_y_array[i] * sigmoid_amp_ + 0.5);
+        for (int i = 0; i < sigmoid_npoints_; ++i) {
+          sigmoid_y_bin[i] = (int)(sigmoid_y_array[i] * output_amp_ + 0.5);
         }
 
-        sigmoid_x_ = static_cast<int*>(CuDevice::Instantiate().Malloc((sigmoid_npoints_ + 1) * sizeof(int)));
-        CU_SAFE_CALL(cudaMemcpy(sigmoid_x_, sigmoid_x_bin, (sigmoid_npoints_ + 1) * sizeof(int),
-                                cudaMemcpyHostToDevice));
-        sigmoid_y_ = static_cast<int*>(CuDevice::Instantiate().Malloc((sigmoid_npoints_ + 1) * sizeof(int)));
-        CU_SAFE_CALL(cudaMemcpy(sigmoid_y_, sigmoid_y_bin, (sigmoid_npoints_ + 1) * sizeof(int),
+        //sigmoid_x_ = static_cast<int*>(CuDevice::Instantiate().Malloc((sigmoid_npoints_ + 1) * sizeof(int)));
+        //CU_SAFE_CALL(cudaMemcpy(sigmoid_x_, sigmoid_x_bin, (sigmoid_npoints_ + 1) * sizeof(int), cudaMemcpyHostToDevice));
+        sigmoid_y_ = static_cast<int*>(CuDevice::Instantiate().Malloc((sigmoid_npoints_) * sizeof(int)));
+        CU_SAFE_CALL(cudaMemcpy(sigmoid_y_, sigmoid_y_bin, (sigmoid_npoints_) * sizeof(int),
                                 cudaMemcpyHostToDevice));
         delete[] sigmoid_x_array;
         delete[] sigmoid_y_array;
-        delete[] sigmoid_x_bin;
+        //delete[] sigmoid_x_bin;
         delete[] sigmoid_y_bin;
 
         // Make tanh table
-        BaseFloat *tanh_x_array = new BaseFloat[tanh_npoints_ + 1];
-        int32 * tanh_x_bin = new int[tanh_npoints_ + 1];
-        BaseFloat *tanh_y_array = new BaseFloat[tanh_npoints_ + 1];
-        int32 *tanh_y_bin = new int[tanh_npoints_ + 1];
+        BaseFloat *tanh_x_array = new BaseFloat[tanh_npoints_];
+        // int32 * tanh_x_bin = new int[tanh_npoints_];
+        BaseFloat *tanh_y_array = new BaseFloat[tanh_npoints_];
+        int32 *tanh_y_bin = new int[tanh_npoints_];
 
-        for (int i = 0; i < tanh_npoints_ + 1; i++) {
+        for (int i = 0; i < tanh_npoints_; ++i) {
           tanh_x_array[i] = -1 + i * 2 / ((BaseFloat)tanh_npoints_);
         }
+        /*
         for (int i = 0; i < tanh_npoints_ + 1; i++) {
           tanh_x_bin[i] = (int)((tanh_x_array[i] + 1) * tanh_amp_ + 0.5);
         }
-        for (int i = 0; i < tanh_npoints_ + 1; i++) {
+        */
+        for (int i = 0; i < tanh_npoints_; ++i) {
           tanh_y_array[i] = (exp(tanh_x_array[i] * tanh_xrange_) - 
                              exp(-tanh_x_array[i] * tanh_xrange_)) /
             (exp(tanh_x_array[i] * tanh_xrange_) + exp(-tanh_x_array[i] * tanh_xrange_));
         }
-        for (int i = 0; i < tanh_npoints_ + 1; i++) {
-          tanh_y_bin[i] = (int)(tanh_y_array[i] * tanh_amp_ + 0.5);
+        for (int i = 0; i < tanh_npoints_; ++i) {
+          tanh_y_bin[i] = (int)(tanh_y_array[i] * output_amp_ + 0.5);
         }
 
-        tanh_x_ = static_cast<int*>(CuDevice::Instantiate().Malloc((tanh_npoints_ + 1) * sizeof(int)));
-        CU_SAFE_CALL(cudaMemcpy(tanh_x_, tanh_x_bin, (tanh_npoints_ + 1) * sizeof(int),
-                                cudaMemcpyHostToDevice));
-        tanh_y_ = static_cast<int*>(CuDevice::Instantiate().Malloc((tanh_npoints_ + 1) * sizeof(int)));
-        CU_SAFE_CALL(cudaMemcpy(tanh_y_, tanh_y_bin, (tanh_npoints_ + 1) * sizeof(int),
+        //tanh_x_ = static_cast<int*>(CuDevice::Instantiate().Malloc((tanh_npoints_ + 1) * sizeof(int)));
+        //CU_SAFE_CALL(cudaMemcpy(tanh_x_, tanh_x_bin, (tanh_npoints_ + 1) * sizeof(int), cudaMemcpyHostToDevice));
+        tanh_y_ = static_cast<int*>(CuDevice::Instantiate().Malloc((tanh_npoints_) * sizeof(int)));
+        CU_SAFE_CALL(cudaMemcpy(tanh_y_, tanh_y_bin, (tanh_npoints_) * sizeof(int),
                                 cudaMemcpyHostToDevice));
 
         // Relase all these extra cpu heap memory
@@ -538,7 +903,7 @@ namespace kaldi {
         is_table_made = 1;
         delete[] tanh_x_array;
         delete[] tanh_y_array;
-        delete[] tanh_x_bin;
+        // delete[] tanh_x_bin;
         delete[] tanh_y_bin;
       }
 
@@ -547,7 +912,7 @@ namespace kaldi {
                              int n) {
         dim3 dimGrid, dimBlock;
         GetBlockSizesForSimpleMatrixOperation(blob.NumRows(), blob.NumCols(), &dimGrid, &dimBlock);
-        cuda_mapping(dimGrid, dimBlock, blob.Data(), in.Data(), sigmoid_xrange_, sigmoid_x_, sigmoid_y_, sigmoid_npoints_, 0, 1, sigmoid_amp_, blob.Dim(), in.Stride());
+        cuda_mapping(dimGrid, dimBlock, blob.Data(), in.Data(), sigmoid_xrange_, sigmoid_y_, sigmoid_npoints_, 0, 1, output_amp_, blob.Dim(), in.Stride());
 
       }
 
@@ -557,8 +922,10 @@ namespace kaldi {
       {
         dim3 dimGrid, dimBlock;
         GetBlockSizesForSimpleMatrixOperation(blob.NumRows(), blob.NumCols(), &dimGrid, &dimBlock);
-        cuda_mapping(dimGrid, dimBlock, blob.Data(), in.Data(), tanh_xrange_, tanh_x_, tanh_y_, tanh_npoints_, -1, 1, tanh_amp_, blob.Dim(), in.Stride());
+        cuda_mapping(dimGrid, dimBlock, blob.Data(), in.Data(), tanh_xrange_, tanh_y_, tanh_npoints_, -1, 1, output_amp_, blob.Dim(), in.Stride());
       }
+
+      virtual void DoSetupStrategy(std::ostream &os, bool binary, bool config_only) {}
 
     private:
       IndexIntMap param_type_map_;
@@ -584,10 +951,11 @@ namespace kaldi {
       int tanh_expo_;
       BaseFloat sigmoid_amp_;
       BaseFloat tanh_amp_;
+      BaseFloat output_amp_;
 
-      int* sigmoid_x_; // on device
+      //int* sigmoid_x_; // on device
       int* sigmoid_y_; // on device
-      int* tanh_x_;    // on device
+      //int* tanh_x_;    // on device
       int* tanh_y_;    // on device
 
     }; // end class DynamicFixedPointStrategy

@@ -5,18 +5,200 @@
 
 namespace kaldi {
   namespace fix {
+
+    typedef std::tr1::unordered_map<int, BaseFloat> IndexFloatMap;
+
     class NullStrategy : public FixStrategy {
     public:
+    NullStrategy()
+      : default_blob_bit(16),
+	sigmoid_xrange(8),
+	tanh_xrange(4),
+	sigmoid_npoints(2048),
+	tanh_npoints(2048),
+	sigmoid_expo(12),
+	tanh_expo(12) {}
+	  
       virtual StrategyType GetType() const { return kNullStrategy; }
+
     protected:
+
       virtual void ReadData(std::istream &is, bool binary, kaldi::nnet1::NnetFix& nnet_fix) {}
-      virtual void WriteData(std::ostream &os, bool binary, bool config_only) const {}
-      virtual void DoFixBlob(CuMatrixBase<BaseFloat> &blob, int n) {}
+
+      void innerWriteData(std::ostream &os, bool binary) const {
+        for( IndexVectorMap::const_iterator item = param_bit_num.begin(); item != param_bit_num.end(); ++item ) {
+          WriteToken(os, binary, "<BitNumParam>");
+          os << "\n";
+          WriteToken(os, binary, "<Component>");
+          os << " ";
+          WriteBasicType(os, binary, item->first);
+          int dis;
+          for ( std::vector<int>::const_iterator order = (item->second).begin(); order != (item->second).end(); ++order) {
+            dis = std::distance((item->second).begin(), order);
+            switch(dis){
+	    case 0 : WriteToken(os, binary, "<w_gifo_x_>");
+	      os << " ";
+	      break;
+	    case 1 : WriteToken(os, binary, "<w_gifo_r_>");
+	      os << " ";
+	      break;
+	    case 2 : WriteToken(os, binary, "<bias_>");
+	      os << " ";
+	      break;
+	    case 3 : WriteToken(os, binary, "<peephole_i_c_>");
+	      os << " ";
+	      break;
+	    case 4 : WriteToken(os, binary, "<peephole_f_c_>");
+	      os << " ";
+	      break;
+	    case 5 : WriteToken(os, binary, "<peephole_o_c_>");
+	      os << " ";
+	      break;
+	    case 6 : WriteToken(os, binary, "<w_r_m_>");
+	      os << " ";
+	      break;
+	    default : KALDI_ERR << "Overflow";
+	      break;
+            }
+            WriteBasicType(os, binary, *order);
+          }
+        }
+        for( IndexIntMap::const_iterator item = blob_bit_num.begin(); item != blob_bit_num.end(); ++item ) {
+          WriteToken(os, binary, "<BitNumBlob>");
+          os << "\n";
+          WriteToken(os, binary, "<Layer>");
+          os << " ";
+          WriteBasicType(os, binary, item->first);
+          WriteToken(os, binary, "<Max>");
+          os << " ";
+          WriteBasicType(os, binary, item->second);
+          os << "\n";
+        }
+
+        for( IndexVectorMap::const_iterator item = param_frag_pos.begin(); item != param_frag_pos.end(); ++item ) {
+          WriteToken(os, binary, "<FragPosParam>");
+          os << "\n";
+          WriteToken(os, binary, "<Component>");
+          os << " ";
+          WriteBasicType(os, binary, item->first);
+          int dis;
+          for ( std::vector<int>::const_iterator order = (item->second).begin(); order != (item->second).end(); ++order) {
+            dis = std::distance((item->second).begin(), order);
+            switch(dis){
+	    case 0 : WriteToken(os, binary, "<w_gifo_x_>");
+	      os << " ";
+	      break;
+	    case 1 : WriteToken(os, binary, "<w_gifo_r_>");
+	      os << " ";
+	      break;
+	    case 2 : WriteToken(os, binary, "<bias_>");
+	      os << " ";
+	      break;
+	    case 3 : WriteToken(os, binary, "<peephole_i_c_>");
+	      os << " ";
+	      break;
+	    case 4 : WriteToken(os, binary, "<peephole_f_c_>");
+	      os << " ";
+	      break;
+	    case 5 : WriteToken(os, binary, "<peephole_o_c_>");
+	      os << " ";
+	      break;
+	    case 6 : WriteToken(os, binary, "<w_r_m_>");
+	      os << " ";
+	      break;
+	    default : KALDI_ERR << "Overflow";
+	      break;
+            }
+            WriteBasicType(os, binary, *order);
+          }
+        }
+        for( IndexIntMap::const_iterator item = blob_frag_pos.begin(); item != blob_frag_pos.end(); ++item ) {
+          WriteToken(os, binary, "<FragPosBlob>");
+          os << "\n";
+          WriteToken(os, binary, "<Layer>");
+          os << " ";
+          WriteBasicType(os, binary, item->first);
+          WriteToken(os, binary, "<Max>");
+          os << " ";
+          WriteBasicType(os, binary, item->second);
+          os << "\n";
+        }
+
+        WriteToken(os, binary, "<NonLinearSigmoid>");
+        os << "\n";
+        WriteToken(os, binary, "<x_range>");
+        os << " ";
+        WriteBasicType(os, binary, sigmoid_xrange);  // x range
+        WriteToken(os, binary, "<n_points>");
+        os << " ";
+        WriteBasicType(os, binary, sigmoid_npoints); // number of points
+        // the exponent to multiply to convert to integers
+        WriteToken(os, binary, "<Expo>");
+        os << " ";
+        WriteBasicType(os, binary, sigmoid_expo);
+        os << "\n";
+        WriteToken(os, binary, "<NonLinearTanh>");
+        os << "\n";
+        WriteToken(os, binary, "<x_range>");
+        os << " ";
+        WriteBasicType(os, binary, tanh_xrange);  // x range
+        WriteToken(os, binary, "<n_points>");
+        os << " ";
+        WriteBasicType(os, binary, tanh_npoints); // number of points
+        // the exponent to multiply to convert to integers
+        WriteToken(os, binary, "<Expo>");
+        os << " ";
+        WriteBasicType(os, binary, tanh_expo);
+
+        if (!binary) os << "\n";
+      }
+
+      virtual void WriteData(std::ostream &os, bool binary, bool config_only) const {
+        if (!config_only) {
+          WriteToken(os, binary, "<Model>");
+          os << "\n";
+          innerWriteData(os, binary);
+        } else {
+          KALDI_ERR << "Cannot config_only!";
+        }
+      }
+
+      virtual void DoFixBlob(CuMatrixBase<BaseFloat> &blob, int n) {
+	IndexFloatMap::const_iterator got;
+	if ((got = blob_min.find(n)) != blob_min.end()) {
+	  BaseFloat min_temp = blob.Min();
+	  BaseFloat max_temp = blob.Max();
+	  if (min_temp < blob_min[n])
+	    blob_min[n] = min_temp;
+	  if (max_temp > blob_max[n])
+	    blob_max[n] = max_temp;
+	} else {
+	  blob_min[n] = blob.Min();
+	  blob_max[n] = blob.Max();
+	}
+      }
+
       virtual void DoFixBlob(MatrixBase<BaseFloat> &blob, int n) {}
+
       virtual void DoFixParam(VectorBase<BaseFloat> &blob,
                               Component::ComponentType comp_type,
                               int n,
-                              std::vector<int> inner_num_param) {}
+                              std::vector<int> inner_num_param) {
+	if (comp_type == kaldi::nnet1::Component::MarkerToType("<LstmProjectedStreams>")) {
+	  int bit_num[7] = {12,12,16,16,16,16,12};
+	  int pos = 0;
+	  BaseFloat b_max = 0;
+	  for (size_t i = 0; i < 7; ++i) {
+	    param_bit_num[n].push_back(bit_num[i]);
+
+	    SubVector<BaseFloat> temp(blob.Range(pos, inner_num_param[i]));
+	    b_max = std::max(fabs(blob.Max()), fabs(blob.Min()));
+	    param_frag_pos[n].push_back( bit_num[i] - 1 - ceil(log(b_max) / log(2)));
+	    pos += inner_num_param[i];
+	  }
+	}
+      }
+
       virtual void DoFixSigm(CuMatrixBase<BaseFloat> &blob,
                              const CuMatrixBase<BaseFloat> &in,
                              int n) {
@@ -27,6 +209,39 @@ namespace kaldi {
                              int n) {
         blob.Tanh(in); // default behavior
       }
+
+      virtual void DoSetupStrategy(std::ostream &os, bool binary, bool config_only) {
+	int index = 0;
+	BaseFloat b_max = 0;
+	for (IndexFloatMap::const_iterator got = blob_max.begin(); got != blob_max.end(); ++got) {
+	  index = got->first;
+	  blob_bit_num[index] = default_blob_bit;
+
+	  b_max = std::max(fabs(blob_min[index]), fabs(blob_max[index]));
+	  blob_frag_pos[index] = default_blob_bit - 1 - ceil(log(b_max) / log(2));
+	}
+
+	Write(os, binary, config_only);
+      }
+
+    private:
+
+      IndexVectorMap param_bit_num;
+      IndexVectorMap param_frag_pos; 
+      IndexIntMap blob_bit_num;
+      IndexIntMap blob_frag_pos; 
+
+      IndexFloatMap blob_min;
+      IndexFloatMap blob_max;
+      
+      int default_blob_bit;
+
+      int sigmoid_xrange;
+      int tanh_xrange;
+      int sigmoid_npoints;
+      int tanh_npoints;
+      int sigmoid_expo;
+      int tanh_expo;
     };
   }
 }
