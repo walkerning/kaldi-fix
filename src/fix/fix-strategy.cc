@@ -54,28 +54,11 @@ namespace kaldi {
     }
 
     void FixStrategy::Write(std::ostream &os, bool binary, bool config_only) const {
-      WriteToken(os, binary, FixStrategy::TypeToMarker(GetType()));
+      WriteToken(os, binary, "<DynamicFixedPoint>");
       if (!binary) os << "\n";
       WriteData(os, binary, config_only);
-      // WriteToken(os, binary, "<!EndOfStrategy>");  // Write component separator.
       if (!binary) os << "\n";
     }
-
-    // std::tr1::shared_ptr<FixStrategy> FixStrategy::Init(const std::string &conf_line) {
-    //   std::istringstream is(conf_line);
-    //   std::string strategy_type_string;
-    //   int32 input_dim, output_dim;
-
-    //   // initialize w/o internal data
-    //   ReadToken(is, false, &strategy_type_string);
-    //   StrategyType strategy_type = MarkerToType(strategy_type_string);
-    //   std::tr1::shared_ptr<FixStrategy> ans = NewStrategyOfType(strategy_type);
-
-    //   // initialize internal data with the remaining part of config line
-    //   ans->InitData(is);
-
-    //   return ans;
-    // }
 
     FixStrategy* FixStrategy::NewStrategyOfType(StrategyType strategy_type) {
       FixStrategy* ans = NULL;
@@ -93,18 +76,13 @@ namespace kaldi {
     }
 
     void FixStrategy::FixParam(kaldi::nnet1::NnetFix& nnet_fix) {
-      Vector<BaseFloat> vector;
-      nnet_fix.GetParams(&vector);
-      int32 pos = 0;
-      for (int32 n = 0; n < nnet_fix.NumComponents(); n++) {
-        // FIXME: 是不是updatable代表需要定点
-        if (nnet_fix.GetComponent(n).IsUpdatable() && (nnet_fix.GetComponent(n).GetType() != Component::kAffineTransform)) // AffineTransform component not fixed
+      for (int32 n = 0; n < nnet_fix.NumComponents(); ++n) {
+        if (nnet_fix.GetComponent(n).GetType() == Component::kLstmProjectedStreams) // only fix lstm component
 	{
-          int32 num_params = dynamic_cast<kaldi::nnet1::UpdatableComponent&>(nnet_fix.GetComponent(n)).NumParams();
-          SubVector<BaseFloat> vector_range(vector.Range(pos, num_params));
-          this->DoFixParam(vector_range, nnet_fix.GetComponent(n).GetType(), n, dynamic_cast<kaldi::nnet1::UpdatableComponent&>(nnet_fix.GetComponent(n)).InnerNumParams());
-          dynamic_cast<kaldi::nnet1::UpdatableComponent&>(nnet_fix.GetComponent(n)).SetParams(vector_range);
-          pos += num_params;
+	  Vector<BaseFloat> vector(dynamic_cast<kaldi::nnet1::UpdatableComponent&>(nnet_fix.GetComponent(n)).NumParams());
+	  dynamic_cast<kaldi::nnet1::UpdatableComponent&>(nnet_fix.GetComponent(n)).GetParams(&vector);
+          this->DoFixParam(vector, nnet_fix.GetComponent(n).GetType(), n, dynamic_cast<kaldi::nnet1::UpdatableComponent&>(nnet_fix.GetComponent(n)).InnerNumParams());
+          dynamic_cast<kaldi::nnet1::UpdatableComponent&>(nnet_fix.GetComponent(n)).SetParams(vector);
         }
       }
     }

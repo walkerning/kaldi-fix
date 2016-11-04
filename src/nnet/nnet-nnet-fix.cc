@@ -88,12 +88,14 @@ void NnetFix::Propagate(const CuMatrixBase<BaseFloat> &in,
   }
   // Copy input to first buffer,
   propagate_buf_[0] = in;
-  // Propagate through all the components,
+  // Propagate through all the components
+  ApplyBlobFix(propagate_buf_[0], 0);
   for (int32 i = 0; i < static_cast<int32>(components_.size()); i++) {
-    ApplyBlobFix(propagate_buf_[i], i);
     components_[i]->Propagate(propagate_buf_[i], &propagate_buf_[i+1]);
+    if (components_[i]->GetType() == Component::kLstmProjectedStreams) {
+      ApplyBlobFix(propagate_buf_[i+1], i);
+    }
   }
-  ApplyBlobFix(propagate_buf_[NumComponents()], NumComponents());
   // Copy the output from the last buffer,
   (*out) = propagate_buf_[NumComponents()];
 }

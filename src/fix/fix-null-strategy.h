@@ -15,9 +15,7 @@ namespace kaldi {
 	sigmoid_xrange(8),
 	tanh_xrange(4),
 	sigmoid_npoints(2048),
-	tanh_npoints(2048),
-	sigmoid_expo(12),
-	tanh_expo(12) {}
+	tanh_npoints(2048) {}
 	  
       virtual StrategyType GetType() const { return kNullStrategy; }
 
@@ -30,47 +28,44 @@ namespace kaldi {
           WriteToken(os, binary, "<BitNumParam>");
           os << "\n";
           WriteToken(os, binary, "<Component>");
-          os << " ";
           WriteBasicType(os, binary, item->first);
           int dis;
           for ( std::vector<int>::const_iterator order = (item->second).begin(); order != (item->second).end(); ++order) {
             dis = std::distance((item->second).begin(), order);
             switch(dis){
 	    case 0 : WriteToken(os, binary, "<w_gifo_x_>");
-	      os << " ";
+	      WriteBasicType(os, binary, *order);
 	      break;
 	    case 1 : WriteToken(os, binary, "<w_gifo_r_>");
-	      os << " ";
+	      WriteBasicType(os, binary, *order);
 	      break;
 	    case 2 : WriteToken(os, binary, "<bias_>");
-	      os << " ";
+	      WriteBasicType(os, binary, *order);
 	      break;
 	    case 3 : WriteToken(os, binary, "<peephole_i_c_>");
-	      os << " ";
+	      WriteBasicType(os, binary, *order);
 	      break;
 	    case 4 : WriteToken(os, binary, "<peephole_f_c_>");
-	      os << " ";
+	      WriteBasicType(os, binary, *order);
 	      break;
 	    case 5 : WriteToken(os, binary, "<peephole_o_c_>");
-	      os << " ";
+	      WriteBasicType(os, binary, *order);
 	      break;
 	    case 6 : WriteToken(os, binary, "<w_r_m_>");
-	      os << " ";
+	      WriteBasicType(os, binary, *order);
+	      os << "\n";
 	      break;
 	    default : KALDI_ERR << "Overflow";
 	      break;
             }
-            WriteBasicType(os, binary, *order);
           }
         }
         for( IndexIntMap::const_iterator item = blob_bit_num.begin(); item != blob_bit_num.end(); ++item ) {
           WriteToken(os, binary, "<BitNumBlob>");
           os << "\n";
           WriteToken(os, binary, "<Layer>");
-          os << " ";
           WriteBasicType(os, binary, item->first);
           WriteToken(os, binary, "<Max>");
-          os << " ";
           WriteBasicType(os, binary, item->second);
           os << "\n";
         }
@@ -79,47 +74,44 @@ namespace kaldi {
           WriteToken(os, binary, "<FragPosParam>");
           os << "\n";
           WriteToken(os, binary, "<Component>");
-          os << " ";
           WriteBasicType(os, binary, item->first);
           int dis;
           for ( std::vector<int>::const_iterator order = (item->second).begin(); order != (item->second).end(); ++order) {
             dis = std::distance((item->second).begin(), order);
             switch(dis){
 	    case 0 : WriteToken(os, binary, "<w_gifo_x_>");
-	      os << " ";
+	      WriteBasicType(os, binary, *order);
 	      break;
 	    case 1 : WriteToken(os, binary, "<w_gifo_r_>");
-	      os << " ";
+	      WriteBasicType(os, binary, *order);
 	      break;
 	    case 2 : WriteToken(os, binary, "<bias_>");
-	      os << " ";
+	      WriteBasicType(os, binary, *order);
 	      break;
 	    case 3 : WriteToken(os, binary, "<peephole_i_c_>");
-	      os << " ";
+	      WriteBasicType(os, binary, *order);
 	      break;
 	    case 4 : WriteToken(os, binary, "<peephole_f_c_>");
-	      os << " ";
+	      WriteBasicType(os, binary, *order);
 	      break;
 	    case 5 : WriteToken(os, binary, "<peephole_o_c_>");
-	      os << " ";
+	      WriteBasicType(os, binary, *order);
 	      break;
 	    case 6 : WriteToken(os, binary, "<w_r_m_>");
-	      os << " ";
+	      WriteBasicType(os, binary, *order);
+	      os << "\n";
 	      break;
 	    default : KALDI_ERR << "Overflow";
 	      break;
             }
-            WriteBasicType(os, binary, *order);
           }
         }
         for( IndexIntMap::const_iterator item = blob_frag_pos.begin(); item != blob_frag_pos.end(); ++item ) {
           WriteToken(os, binary, "<FragPosBlob>");
           os << "\n";
           WriteToken(os, binary, "<Layer>");
-          os << " ";
           WriteBasicType(os, binary, item->first);
           WriteToken(os, binary, "<Max>");
-          os << " ";
           WriteBasicType(os, binary, item->second);
           os << "\n";
         }
@@ -127,28 +119,16 @@ namespace kaldi {
         WriteToken(os, binary, "<NonLinearSigmoid>");
         os << "\n";
         WriteToken(os, binary, "<x_range>");
-        os << " ";
         WriteBasicType(os, binary, sigmoid_xrange);  // x range
         WriteToken(os, binary, "<n_points>");
-        os << " ";
         WriteBasicType(os, binary, sigmoid_npoints); // number of points
-        // the exponent to multiply to convert to integers
-        WriteToken(os, binary, "<Expo>");
-        os << " ";
-        WriteBasicType(os, binary, sigmoid_expo);
         os << "\n";
         WriteToken(os, binary, "<NonLinearTanh>");
         os << "\n";
         WriteToken(os, binary, "<x_range>");
-        os << " ";
         WriteBasicType(os, binary, tanh_xrange);  // x range
         WriteToken(os, binary, "<n_points>");
-        os << " ";
         WriteBasicType(os, binary, tanh_npoints); // number of points
-        // the exponent to multiply to convert to integers
-        WriteToken(os, binary, "<Expo>");
-        os << " ";
-        WriteBasicType(os, binary, tanh_expo);
 
         if (!binary) os << "\n";
       }
@@ -192,7 +172,7 @@ namespace kaldi {
 	    param_bit_num[n].push_back(bit_num[i]);
 
 	    SubVector<BaseFloat> temp(blob.Range(pos, inner_num_param[i]));
-	    b_max = std::max(fabs(blob.Max()), fabs(blob.Min()));
+	    b_max = std::max(fabs(temp.Max()), fabs(temp.Min()));
 	    param_frag_pos[n].push_back( bit_num[i] - 1 - ceil(log(b_max) / log(2)));
 	    pos += inner_num_param[i];
 	  }
@@ -213,12 +193,21 @@ namespace kaldi {
       virtual void DoSetupStrategy(std::ostream &os, bool binary, bool config_only) {
 	int index = 0;
 	BaseFloat b_max = 0;
+	// confirm fixconf related to blob
 	for (IndexFloatMap::const_iterator got = blob_max.begin(); got != blob_max.end(); ++got) {
+	  // confirm blob_bit_num
 	  index = got->first;
 	  blob_bit_num[index] = default_blob_bit;
-
+	  // confirm blob_frag_pos
 	  b_max = std::max(fabs(blob_min[index]), fabs(blob_max[index]));
 	  blob_frag_pos[index] = default_blob_bit - 1 - ceil(log(b_max) / log(2));
+	}
+
+	// fix-point of bias in lstm should be aligned with the fix-point of blob for this layer
+	for (IndexVectorMap::iterator got = param_frag_pos.begin(); got != param_frag_pos.end(); ++got) {
+	  index = got->first;
+	  IndexIntMap::const_iterator item = blob_frag_pos.find(index + 1);
+	  (got->second)[2] = item->second;
 	}
 
 	Write(os, binary, config_only);
@@ -240,8 +229,6 @@ namespace kaldi {
       int tanh_xrange;
       int sigmoid_npoints;
       int tanh_npoints;
-      int sigmoid_expo;
-      int tanh_expo;
     };
   }
 }

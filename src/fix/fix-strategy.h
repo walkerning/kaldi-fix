@@ -80,17 +80,11 @@ namespace kaldi {
         this->DoFixBlob(blob, n);
       }
 
-      void FixSigm(CuMatrixBase<BaseFloat> &blob, 
-                   const CuMatrixBase<BaseFloat> &in,
-                   int n)
-      {
+      void FixSigm(CuMatrixBase<BaseFloat> &blob, const CuMatrixBase<BaseFloat> &in, int n) {
         this->DoFixSigm(blob, in, n);
       }
 
-      void FixTanh(CuMatrixBase<BaseFloat> &blob, 
-                   const CuMatrixBase<BaseFloat> &in,
-                   int n)
-      {
+      void FixTanh(CuMatrixBase<BaseFloat> &blob, const CuMatrixBase<BaseFloat> &in, int n) {
         this->DoFixTanh(blob, in, n);
       }
 
